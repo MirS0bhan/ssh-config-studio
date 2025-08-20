@@ -69,4 +69,4 @@ Issues and pull requests are welcome. Please keep code readable and small, focus
 
 ### License
 
-MIT License — see `LICENSE` if/when added. Until then, all rights reserved by the author where applicable.
+This project is licensed under the [MIT License](https://opensource.org/license/mit).
