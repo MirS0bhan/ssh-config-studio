@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=SSH Config Studio
+Comment=Manage SSH configuration files with a native GTK interface
+Exec=python3 /home/buddy/PurePython/SSH%20Config%20Studio/launch.py
+Icon=assets/icon.png
+Terminal=false
+Categories=System;Network;GTK;
+Keywords=SSH;config;network;administration;
+StartupNotify=true
