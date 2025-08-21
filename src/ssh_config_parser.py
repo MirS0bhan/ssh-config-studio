@@ -170,6 +170,7 @@ class SSHConfigParser:
                 if current == content:
                     return
             except Exception:
+                # If read fails, continue to write the new content
                 pass
 
         effective_backup = backup and self.auto_backup_enabled and self.config_path.exists()
@@ -267,8 +268,9 @@ class SSHConfigParser:
                 try:
                     with p.open("r", encoding="utf-8") as f:
                         resolved[p] = f.readlines()
-                except Exception as e:
-                    pass # Failed to read include, gracefully ignore
+                except Exception:
+                    # Failed to read include, gracefully ignore
+                    continue
         self.config.includes_resolved = resolved
 
     def _backup_file(self) -> None:

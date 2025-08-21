@@ -1,0 +1,36 @@
+app-id: com.sshconfigstudio.app
+runtime: org.gnome.Platform
+runtime-version: '46'
+sdk: org.gnome.Sdk
+command: ssh-config-studio
+finish-args:
+  # GUI + portals
+  - --share=ipc
+  - --socket=fallback-x11
+  - --socket=wayland
+  # Networking for ssh
+  - --share=network
+  # Access to user's SSH config and keys (read/write)
+  - --filesystem=~/.ssh:rw
+  # Access to SSH agent inside the sandbox
+  - --socket=ssh-auth
+modules:
+  - name: ssh-config-studio
+    buildsystem: meson
+    config-opts: []
+    sources:
+      - type: dir
+        path: .
+    build-commands:
+      - |
+        printf '#!/usr/bin/env bash\nexec python3 -m ssh_config_studio.main "$@"\n' > ssh-config-studio
+      - install -Dm755 ssh-config-studio /app/bin/ssh-config-studio
+    cleanup:
+      - /include
+      - /lib/pkgconfig
+      - /share/man
+      - /share/pkgconfig
+      - /share/gtk-doc
+      - /share/doc
+      - /share/devhelp
+

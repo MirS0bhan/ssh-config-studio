@@ -1,16 +1,45 @@
-"""Host Editor: Component for editing SSH host configurations."""
-
 import gi
 gi.require_version('Gtk', '4.0')
 from gi.repository import Gtk, GObject, Gio, Gdk, GLib
 import subprocess
 import threading
 
-from ssh_config_parser import SSHHost, SSHOption
+# Support both installed package and local source tree
+try:
+	from ssh_config_studio.ssh_config_parser import SSHHost, SSHOption
+except ImportError:
+	from ssh_config_parser import SSHHost, SSHOption
 import difflib
 import copy
+from gettext import gettext as _
+import os
 
+@Gtk.Template(resource_path="/com/sshconfigstudio/app/ui/host_editor.ui")
 class HostEditor(Gtk.Box):
+
+    __gtype_name__ = "HostEditor"
+
+    # Template children
+    notebook = Gtk.Template.Child()
+    patterns_entry = Gtk.Template.Child()
+    patterns_error_label = Gtk.Template.Child()
+    hostname_entry = Gtk.Template.Child()
+    user_entry = Gtk.Template.Child()
+    port_entry = Gtk.Template.Child()
+    port_error_label = Gtk.Template.Child()
+    identity_entry = Gtk.Template.Child()
+    identity_button = Gtk.Template.Child()
+    forward_agent_switch = Gtk.Template.Child()
+    proxy_jump_entry = Gtk.Template.Child()
+    proxy_cmd_entry = Gtk.Template.Child()
+    local_forward_entry = Gtk.Template.Child()
+    remote_forward_entry = Gtk.Template.Child()
+    custom_options_list = Gtk.Template.Child()
+    add_custom_button = Gtk.Template.Child()
+    raw_text_view = Gtk.Template.Child()
+    copy_ssh_button = Gtk.Template.Child()
+    test_connection_button = Gtk.Template.Child()
+    revert_button = Gtk.Template.Child()
 
     # Custom signals
     __gsignals__ = {
@@ -18,16 +47,13 @@ class HostEditor(Gtk.Box):
         'editor-validity-changed': (GObject.SignalFlags.RUN_LAST, None, (bool,))
     }
 
-    def __init__(self, app):
-        super().__init__(orientation=Gtk.Orientation.VERTICAL)
-        self.add_css_class("editor-pane")
-        self.set_visible(False) # Hide by default
-        
-        self.app = app
+    def __init__(self):
+        super().__init__()
+        self.set_visible(False)
+        self.app = None
         self.current_host = None
         self.is_loading = False
-        self._programmatic_raw_update = False # Flag to prevent re-parsing during programmatic updates
-        
+        self._programmatic_raw_update = False
         # CSS for inline validation errors
         try:
             css = Gtk.CssProvider()
@@ -39,12 +65,22 @@ class HostEditor(Gtk.Box):
                 Gtk.Display.get_default(), css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
             )
         except Exception:
-            # Ignore if CSS fails to load, as it might be system-specific.
             pass
-
-        self._setup_ui()
         self._connect_signals()
-    
+        try:
+            self.buffer = self.raw_text_view.get_buffer()
+            self.tag_add = self.buffer.create_tag("added", background="#aaffaa", foreground="black")
+            self.tag_removed = self.buffer.create_tag("removed", background="#ffaaaa", foreground="black")
+            self.tag_changed = self.buffer.create_tag("changed", background="#ffffaa", foreground="black")
+        except Exception:
+            self.buffer = None
+            self.tag_add = None
+            self.tag_removed = None
+            self.tag_changed = None
+
+    def set_app(self, app):
+        self.app = app
+
     def _setup_ui(self):
         title_label = Gtk.Label(label="Host Configuration")
         title_label.add_css_class("title")
@@ -225,7 +261,7 @@ class HostEditor(Gtk.Box):
         
         self.raw_text_view = Gtk.TextView()
         self.raw_text_view.set_monospace(True)
-        self.raw_text_view.set_wrap_mode(Gtk.WrapMode.NONE) # No wrapping for code
+        self.raw_text_view.set_wrap_mode(Gtk.WrapMode.NONE)
         self.raw_text_view.set_editable(True)
         self.raw_text_view.set_hexpand(True)
         self.raw_text_view.set_vexpand(True)
@@ -238,12 +274,6 @@ class HostEditor(Gtk.Box):
         
         self.notebook.append_page(raw_box, Gtk.Label(label="Raw/Diff"))
 
-        # Setup text tags for diff highlighting
-        self.buffer = self.raw_text_view.get_buffer()
-        self.tag_add = self.buffer.create_tag("added", background="#aaffaa", foreground="black")
-        self.tag_removed = self.buffer.create_tag("removed", background="#ffaaaa", foreground="black")
-        self.tag_changed = self.buffer.create_tag("changed", background="#ffffaa", foreground="black")
-    
     def _setup_quick_actions(self):
         actions_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         actions_box.add_css_class("linked")
@@ -283,11 +313,17 @@ class HostEditor(Gtk.Box):
         
         self._raw_changed_handler_id = self.raw_text_view.get_buffer().connect("changed", self._on_raw_text_changed)
 
+        # Connect buttons (explicitly, as they are not tied to field changes directly)
+        self.identity_button.connect("clicked", self._on_identity_file_clicked)
+        self.add_custom_button.connect("clicked", self._on_add_custom_option)
+        self.copy_ssh_button.connect("clicked", self._on_copy_ssh_command)
+        self.test_connection_button.connect("clicked", self._on_test_connection)
+        self.revert_button.connect("clicked", self._on_revert_clicked)
     
     def load_host(self, host: SSHHost):
         self.is_loading = True
         self.current_host = host
-        self.original_host_state = copy.deepcopy(host) # Store a pristine copy for revert
+        self.original_host_state = copy.deepcopy(host)
         
         if not host:
             self._clear_all_fields()
@@ -310,19 +346,17 @@ class HostEditor(Gtk.Box):
         
         self._load_custom_options(host)
 
-        # Load raw configuration into raw text view
         self.raw_text_view.get_buffer().set_text("\n".join(host.raw_lines))
-        # Ensure original_raw_content reflects the actual content after loading,
-        # especially important for newly created hosts where raw_lines might be synthesized.
         self.original_raw_content = "\n".join(host.raw_lines)
         
         self.is_loading = False
-        self.revert_button.set_sensitive(False) # New host loaded, no changes yet
+        self.revert_button.set_sensitive(False)
 
-        # Apply initial diff highlighting
         self._programmatic_raw_update = True
-        self._on_raw_text_changed(self.raw_text_view.get_buffer())
-        self._programmatic_raw_update = False
+        try:
+            self._on_raw_text_changed(self.raw_text_view.get_buffer())
+        finally:
+            self._programmatic_raw_update = False
     
     def _clear_all_fields(self):
         """Clears all input fields and custom options."""
@@ -452,6 +486,11 @@ class HostEditor(Gtk.Box):
         current_lines = current_text.splitlines()
         original_lines = self.original_raw_content.splitlines()
 
+        if self.buffer is None:
+            try:
+                self.buffer = self.raw_text_view.get_buffer()
+            except Exception:
+                return
         self.buffer.remove_all_tags(self.buffer.get_start_iter(), self.buffer.get_end_iter())
 
         s = difflib.SequenceMatcher(None, original_lines, current_lines)
@@ -564,16 +603,16 @@ class HostEditor(Gtk.Box):
     
     def _on_identity_file_clicked(self, button):
         dialog = Gtk.FileChooserDialog(
-            title="Choose Identity File",
+            title=_("Choose Identity File"),
             transient_for=self.get_root(),
             action=Gtk.FileChooserAction.OPEN
         )
         
-        dialog.add_button("Cancel", Gtk.ResponseType.CANCEL)
-        dialog.add_button("Open", Gtk.ResponseType.OK)
+        dialog.add_button(_("Cancel"), Gtk.ResponseType.CANCEL)
+        dialog.add_button(_("Open"), Gtk.ResponseType.OK)
         
         filter_text = Gtk.FileFilter()
-        filter_text.set_name("SSH Keys")
+        filter_text.set_name(_("SSH Keys"))
         filter_text.add_pattern("*.pem")
         filter_text.add_pattern("id_*")
         dialog.add_filter(filter_text)
@@ -629,19 +668,16 @@ class HostEditor(Gtk.Box):
         )
         clipboard.set(provider)
         
-        self.app._show_toast(f"SSH command copied: {command}")
+        self.app._show_toast(_(f"SSH command copied: {command}"))
 
     def is_host_dirty(self) -> bool:
         """Checks if the current host has unsaved changes compared to its original loaded state."""
         if not self.current_host or not self.original_host_state:
             return False
 
-        # Compare patterns
         if sorted(self.current_host.patterns) != sorted(self.original_host_state.patterns):
             return True
 
-        # Compare options. Order might matter for raw, but for structured comparison, not necessarily.
-        # A robust comparison would involve comparing option keys and values.
         if len(self.current_host.options) != len(self.original_host_state.options):
             return True
         
@@ -665,16 +701,16 @@ class HostEditor(Gtk.Box):
 
         patterns_text = self.patterns_entry.get_text().strip()
         if not patterns_text:
-            errors['patterns'] = "Host name (patterns) is required."
+            errors['patterns'] = _("Host name (patterns) is required.")
 
         port_text = self.port_entry.get_text().strip()
         if port_text:
             try:
                 port = int(port_text)
                 if not (1 <= port <= 65535):
-                    errors['port'] = "Port must be between 1 and 65535."
+                    errors['port'] = _("Port must be between 1 and 65535.")
             except ValueError:
-                errors['port'] = "Port must be numeric."
+                errors['port'] = _("Port must be numeric.")
 
         # Mark invalid custom option keys with red border and tooltip
         for row_widget in self.custom_options_list:
@@ -686,7 +722,7 @@ class HostEditor(Gtk.Box):
                     key_entry.remove_css_class("entry-error")
                     if not key:
                         key_entry.add_css_class("entry-error")
-                        key_entry.set_tooltip_text("Custom option key cannot be empty.")
+                        key_entry.set_tooltip_text(_("Custom option key cannot be empty."))
 
         # Apply inline error texts
         if 'patterns' in errors:
@@ -758,22 +794,23 @@ class HostEditor(Gtk.Box):
         self.original_raw_content = "\n".join(self.current_host.raw_lines)
         self.is_loading = False
 
-        self.buffer.remove_all_tags(self.buffer.get_start_iter(), self.buffer.get_end_iter())
+        if self.buffer is not None:
+            self.buffer.remove_all_tags(self.buffer.get_start_iter(), self.buffer.get_end_iter())
         self.emit("host-changed", self.current_host)
         self.revert_button.set_sensitive(False)
-        self.app._show_toast(f"Reverted changes for {self.current_host.patterns[0]}")
+        self.app._show_toast(_(f"Reverted changes for {self.current_host.patterns[0]}"))
 
     def _on_test_connection(self, button):
         if not self.current_host:
             return
         
         dialog = Gtk.Dialog(
-            title="Test Connection",
+            title=_("Test Connection"),
             transient_for=self.get_root(),
             modal=True
         )
         
-        dialog.add_button("Close", Gtk.ResponseType.CLOSE)
+        dialog.add_button(_("Close"), Gtk.ResponseType.CLOSE)
         dialog.connect("response", lambda d, r: d.destroy())
         dialog.set_resizable(True)
         dialog.set_default_size(900, 600)
@@ -784,7 +821,7 @@ class HostEditor(Gtk.Box):
         content_area.set_margin_top(12)
         content_area.set_margin_bottom(12)
         
-        status_label = Gtk.Label(label="Running SSH command...")
+        status_label = Gtk.Label(label=_("Running SSH command..."))
         status_label.set_margin_bottom(12)
         content_area.append(status_label)
 
@@ -807,11 +844,19 @@ class HostEditor(Gtk.Box):
             hostname = self.current_host.patterns[0] # Fallback to pattern if hostname is empty
 
         if not hostname:
-            status_label.set_text("Error: No hostname or pattern available to test.")
+            status_label.set_text(_("Error: No hostname or pattern available to test."))
             dialog.present()
             return
 
-        command = ["ssh",
+        # Use host SSH when running inside Flatpak
+        ssh_invocation = ["ssh"]
+        try:
+            if os.environ.get("FLATPAK_ID"):
+                ssh_invocation = ["flatpak-spawn", "--host", "ssh"]
+        except Exception:
+            pass
+
+        command = [*ssh_invocation,
                    "-q",
                    "-T",
                    "-o", "BatchMode=yes",
@@ -856,13 +901,13 @@ class HostEditor(Gtk.Box):
                 stderr_text = (result.stderr or "").strip()
 
                 def update_ui():
-                    summary = "Connection OK" if rc == 0 else f"Connection failed (exit {rc})"
+                    summary = _("Connection OK") if rc == 0 else _(f"Connection failed (exit {rc})")
                     status_label.set_text(summary)
                     output = f"Command: {' '.join(command)}\n\n"
                     if stdout_text:
-                        output += f"STDOUT:\n{stdout_text}\n\n"
+                        output += _(f"STDOUT:\n{stdout_text}\n\n")
                     if stderr_text:
-                        output += f"STDERR:\n{stderr_text}\n\n"
+                        output += _(f"STDERR:\n{stderr_text}\n\n")
                     output += summary
                     output_text_buffer.set_text(output)
                     return False
@@ -871,13 +916,13 @@ class HostEditor(Gtk.Box):
 
             except subprocess.TimeoutExpired:
                 def update_timeout():
-                    status_label.set_text("Connection timed out")
-                    output_text_buffer.set_text(f"Command: {' '.join(command)}\n\nTimed out after 20s")
+                    status_label.set_text(_("Connection timed out"))
+                    output_text_buffer.set_text(_(f"Command: {' '.join(command)}\n\nTimed out after 20s"))
                     return False
                 GLib.idle_add(update_timeout)
             except Exception as e:
                 def update_error():
-                    status_label.set_text(f"Error: {e}")
+                    status_label.set_text(_(f"Error: {e}"))
                     output_text_buffer.set_text(str(e))
                     return False
                 GLib.idle_add(update_error)

@@ -1,18 +1,26 @@
-"""
-Host List - Component for displaying and managing SSH hosts.
-
-This module provides a list view of SSH hosts with search, add, duplicate,
-and delete functionality.
-"""
-
 import gi
 gi.require_version('Gtk', '4.0')
 from gi.repository import Gtk, GObject, Pango
+from gettext import gettext as _
 
-from ssh_config_parser import SSHHost, SSHOption
+# Support both installed package and local source tree
+try:
+	from ssh_config_studio.ssh_config_parser import SSHHost, SSHOption
+except ImportError:
+	from ssh_config_parser import SSHHost, SSHOption
 
+@Gtk.Template(resource_path="/com/sshconfigstudio/app/ui/host_list.ui")
 class HostList(Gtk.Box):
     
+    __gtype_name__ = "HostList"
+
+    # Template children
+    tree_view = Gtk.Template.Child()
+    count_label = Gtk.Template.Child()
+    add_button = Gtk.Template.Child()
+    duplicate_button = Gtk.Template.Child()
+    delete_button = Gtk.Template.Child()
+
     # Custom signals
     __gsignals__ = {
         'host-selected': (GObject.SignalFlags.RUN_LAST, None, (object,)),
@@ -21,81 +29,18 @@ class HostList(Gtk.Box):
     }
     
     def __init__(self):
-        super().__init__(orientation=Gtk.Orientation.VERTICAL)
+        super().__init__()
         
         self.hosts = []
         self.filtered_hosts = []
         self.current_filter = ""
         
-        self._setup_ui()
         self._connect_signals()
-    
-    def _setup_ui(self):
-        header_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        header_box.add_css_class("host-list-header")
-        header_box.set_hexpand(True)
-
-        title_label = Gtk.Label(label="SSH Hosts")
-        title_label.add_css_class("title")
-        title_label.set_xalign(0)
-        header_box.append(title_label)
-
-        button_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        button_box.add_css_class("linked")
-
-        add_button = Gtk.Button()
-        add_button.set_icon_name("list-add-symbolic")
-        add_button.set_tooltip_text("Add Host")
-        add_button.connect("clicked", self._on_add_clicked)
-        button_box.append(add_button)
-
-        duplicate_button = Gtk.Button()
-        duplicate_button.set_icon_name("edit-copy-symbolic")
-        duplicate_button.set_tooltip_text("Duplicate Host")
-        duplicate_button.connect("clicked", self._on_duplicate_clicked)
-        button_box.append(duplicate_button)
-
-        delete_button = Gtk.Button()
-        delete_button.set_icon_name("edit-delete-symbolic")
-        delete_button.set_tooltip_text("Delete Host")
-        delete_button.connect("clicked", self._on_delete_clicked)
-        button_box.append(delete_button)
-
-        header_box.append(button_box)
-        self.append(header_box)
-
-        self.count_label = Gtk.Label(label="0 hosts")
-        self.count_label.add_css_class("dim-label")
-        header_box.append(self.count_label)
-
-        self._setup_tree_view()
-
-        self.add_button = add_button
-        self.duplicate_button = duplicate_button
-        self.delete_button = delete_button
-
-    def _setup_tree_view(self):
-        self.tree_view = Gtk.TreeView()
-        self.tree_view.set_headers_visible(True)
-        self.tree_view.set_search_column(0)
-        self.tree_view.set_hexpand(True)
-        self.tree_view.set_vexpand(True)
-
+        
         self.list_store = Gtk.ListStore(str, str, str, str, str, object)
         self.tree_view.set_model(self.list_store)
-
         self._setup_columns()
-
-        selection = self.tree_view.get_selection()
-        selection.connect("changed", self._on_selection_changed)
-
-        scrolled_window = Gtk.ScrolledWindow()
-        scrolled_window.set_child(self.tree_view)
-        scrolled_window.set_min_content_width(350)
-        scrolled_window.set_hexpand(True)
-        scrolled_window.set_vexpand(True)
-        self.append(scrolled_window)
-
+    
     def _setup_columns(self):
         def add_text_column(title: str, col_index: int, expand: bool = False, min_width: int | None = None):
             renderer = Gtk.CellRendererText()
@@ -108,14 +53,19 @@ class HostList(Gtk.Box):
                 column.set_min_width(min_width)
             self.tree_view.append_column(column)
 
-        add_text_column("Host", 0, True, 120)
-        add_text_column("HostName", 1, True, 150)
-        add_text_column("User", 2, False, 80)
-        add_text_column("Port", 3, False, 60)
-        add_text_column("Identity", 4, True, 120)
+        add_text_column(_("Host"), 0, True, 120)
+        add_text_column(_("HostName"), 1, True, 150)
+        add_text_column(_("User"), 2, False, 80)
+        add_text_column(_("Port"), 3, False, 60)
+        add_text_column(_("Identity"), 4, True, 120)
+
+    def _connect_signals(self):
+        self.add_button.connect("clicked", self._on_add_clicked)
+        self.duplicate_button.connect("clicked", self._on_duplicate_clicked)
+        self.delete_button.connect("clicked", self._on_delete_clicked)
         
-    def _connect_signals(self): # type: ignore[empty-body]
-        pass # No signals specific to HostList itself, handled by parent/children
+        selection = self.tree_view.get_selection()
+        selection.connect("changed", self._on_selection_changed)
 
     def load_hosts(self, hosts: list):
         self.hosts = hosts
@@ -177,9 +127,9 @@ class HostList(Gtk.Box):
         filtered = len(self.filtered_hosts)
 
         if filtered == total:
-            self.count_label.set_text(f"{total} hosts")
+            self.count_label.set_text(_(f"{total} hosts"))
         else:
-            self.count_label.set_text(f"{filtered} of {total} hosts")
+            self.count_label.set_text(_(f"{filtered} of {total} hosts"))
 
     def _on_selection_changed(self, selection):
         model, tree_iter = selection.get_selected()
@@ -195,11 +145,8 @@ class HostList(Gtk.Box):
 
     def _on_add_clicked(self, button):
         new_host = SSHHost(patterns=["new-host"])
-        # Emit the signal so the main window can finalize and add to the shared config list.
-        # This avoids double-appending as self.hosts references the parser's config.hosts.
         self.emit("host-added", new_host)
 
-        # Recompute filtered view from the updated shared list.
         self.filter_hosts(self.current_filter)
 
         self.select_host(new_host)
@@ -211,10 +158,8 @@ class HostList(Gtk.Box):
             original_host = model.get_value(tree_iter, 5)
             duplicated_host = self._duplicate_host(original_host)
 
-            # Let the main window add it to the shared config list.
             self.emit("host-added", duplicated_host)
 
-            # Refresh view from the shared list after addition.
             self.filter_hosts(self.current_filter)
 
             self.select_host(duplicated_host)
@@ -229,11 +174,11 @@ class HostList(Gtk.Box):
                 transient_for=self.get_root(),
                 message_type=Gtk.MessageType.QUESTION,
                 buttons=Gtk.ButtonsType.NONE,
-                text=f"Delete host '{', '.join(host.patterns)}'?",
+                text=_(f"Delete host '{', '.join(host.patterns)}'?"),
             )
             dialog.add_buttons(
-                "No", Gtk.ResponseType.NO,
-                "Yes", Gtk.ResponseType.YES,
+                _("No"), Gtk.ResponseType.NO,
+                _("Yes"), Gtk.ResponseType.YES,
             )
 
             def on_response(dlg, response_id):

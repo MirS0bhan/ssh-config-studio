@@ -1,106 +1,71 @@
-"""Main Window: Primary interface for SSH Config Studio."""
-
 import gi
 gi.require_version('Gtk', '4.0')
-from gi.repository import Gtk, Gio, GLib, Pango, GdkPixbuf, Gdk
+gi.require_version('Adw', '1')
+from gi.repository import Gtk, Gio, GLib, Pango, GdkPixbuf, Gdk, Adw
 from pathlib import Path
+from gettext import gettext as _
+import sys
 
 from .host_list import HostList
 from .host_editor import HostEditor
 from .search_bar import SearchBar
 
-class MainWindow(Gtk.ApplicationWindow):
+@Gtk.Template(resource_path="/com/sshconfigstudio/app/ui/main_window.ui")
+class MainWindow(Adw.ApplicationWindow):
     """Main application window for SSH Config Studio."""
     
+    __gtype_name__ = "MainWindow"
+
+    # Template children
+    main_box = Gtk.Template.Child()
+    toast_overlay = Gtk.Template.Child()
+    search_button = Gtk.Template.Child()
+    search_bar = Gtk.Template.Child()
+    host_list = Gtk.Template.Child()
+    host_editor = Gtk.Template.Child()
+    save_button = Gtk.Template.Child()
+
     def __init__(self, app):
         super().__init__(
             application=app,
-            title="SSH Config Studio",
-            default_width=1200,
-            default_height=800
         )
         
         self.app = app
         self.parser = app.parser
         self.is_dirty = False
         
-        self._setup_ui()
         self._connect_signals()
         self._load_config()
+        
+        self.connect("notify::has-focus", self._on_window_focus_changed)
+        
+        try:
+            key_controller = Gtk.EventControllerKey.new()
+            key_controller.connect("key-pressed", self._on_key_pressed)
+            self.add_controller(key_controller)
+        except Exception:
+            pass
     
-    def _setup_ui(self):
-        """Set up the main user interface."""
-        self.main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        self.set_child(self.main_box)
-        
-        self._setup_header_bar()
-        
-        self.search_bar = SearchBar()
-        self.main_box.append(self.search_bar)
-        
-        self._setup_split_view()
-        
-        self._setup_status_bar()
     
-    def _setup_header_bar(self):
-        """Set up the header bar with title, search, and actions."""
-        header_bar = Gtk.HeaderBar()
-        self.set_titlebar(header_bar)
-        
-        title_label = Gtk.Label(label="SSH Config Studio")
-        title_label.add_css_class("title")
-        header_bar.set_title_widget(title_label)
-        
-        search_button = Gtk.Button()
-        search_button.set_icon_name("system-search-symbolic")
-        search_button.connect("clicked", self._on_search_clicked)
-        search_button.set_tooltip_text("Search (Ctrl+F)")
-        header_bar.pack_start(search_button)
-        
-        self.save_button = Gtk.Button(label="Save")
-        self.save_button.add_css_class("suggested-action")
-        self.save_button.connect("clicked", self._on_save_clicked)
-        self.save_button.set_sensitive(False)
-        header_bar.pack_end(self.save_button)
-        
-        menu_button = Gtk.MenuButton()
-        menu_button.set_icon_name("open-menu-symbolic")
-        menu_button.set_menu_model(self._create_menu_model())
-        header_bar.pack_end(menu_button)
     
-    def _create_menu_model(self):
-        """Create the application menu model."""
-        menu = Gio.Menu()
-        
-        file_section = Gio.Menu()
-        file_section.append("Open Config", "app.open-config")
-        file_section.append("Reload", "app.reload")
-        file_section.append("Preferences", "app.preferences")
-        menu.append_section("File", file_section)
-        
-        help_section = Gio.Menu()
-        help_section.append("About", "app.about")
-        menu.append_section("Help", help_section)
-        
-        return menu
-    
-    def _setup_status_bar(self):
-        """Set up the status bar for displaying messages."""
-        self.status_bar = Gtk.InfoBar()
-        self.status_bar.set_revealed(False)
-        self.main_box.append(self.status_bar)
-        
-        self.status_label = Gtk.Label()
-        self.status_bar.add_child(self.status_label)
-        
-        close_button = Gtk.Button(label="Close")
-        close_button.connect("clicked", lambda w: self.status_bar.set_revealed(False))
-        self.status_bar.add_action_widget(close_button, Gtk.ResponseType.CLOSE)
+    def show_toast(self, message: str):
+        """Show a transient toast using Adw.ToastOverlay."""
+        try:
+            toast = Adw.Toast.new(message)
+            if hasattr(self, 'toast_overlay') and self.toast_overlay is not None:
+                self.toast_overlay.add_toast(toast)
+        except Exception:
+            pass
     
     def _setup_split_view(self):
         """Set up the split view between host list and editor."""
         self.host_list = HostList()
-        self.host_editor = HostEditor(self.app)
+        self.host_editor = HostEditor()
+        try:
+            self.host_editor.set_app(self.app)
+        except Exception:
+            # Host editor will operate without app reference
+            return
         
         paned = Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL)
         paned.set_start_child(self.host_list)
@@ -111,6 +76,14 @@ class MainWindow(Gtk.ApplicationWindow):
     
     def _connect_signals(self):
         """Connect all the signal handlers."""
+        try:
+            self.save_button.connect("clicked", self._on_save_clicked)
+        except Exception:
+            pass
+        try:
+            self.search_button.connect("clicked", self._on_search_button_clicked)
+        except Exception:
+            pass
         self.host_list.connect("host-selected", self._on_host_selected)
         self.host_list.connect("host-added", self._on_host_added)
         self.host_list.connect("host-deleted", self._on_host_deleted)
@@ -142,7 +115,33 @@ class MainWindow(Gtk.ApplicationWindow):
         about_action.connect("activate", self._on_about)
         actions.add_action(about_action)
         
+        search_action = Gio.SimpleAction.new("search", None)
+        search_action.connect("activate", self._on_search_action)
+        actions.add_action(search_action)
+        
         self.insert_action_group("app", actions)
+        
+        try:
+            app = self.get_application() or self.app
+            if app is not None:
+                app.set_accels_for_action("app.search", ["<primary>f"])
+        except Exception:
+            pass
+    
+    def _on_key_pressed(self, controller, keyval, keycode, state):
+        if keyval == Gdk.KEY_Escape and self.search_bar.get_visible():
+            self.search_bar.clear_search()
+            self.search_bar.set_visible(False)
+            self.host_list.filter_hosts("")
+            return True
+        return False
+    
+    def _on_escape_pressed(self, shortcut):
+        """Handle Escape key press - close search bar if visible."""
+        if self.search_bar.get_visible():
+            self.search_bar.clear_search()
+            self.search_bar.set_visible(False)
+            self.host_list.filter_hosts("")
     
     def _load_config(self):
         """Load the SSH configuration."""
@@ -156,9 +155,37 @@ class MainWindow(Gtk.ApplicationWindow):
         except Exception as e:
             self._show_error(f"Failed to load configuration: {e}")
     
-    def _on_search_clicked(self, button):
+    def _toggle_search(self, force=None):
+        """Show/hide search bar. If force is None, toggle; else set visibility to force."""
+        try:
+            make_visible = (not self.search_bar.get_visible()) if force is None else bool(force)
+            self.search_bar.set_visible(make_visible)
+            if make_visible:
+                self.search_bar.grab_focus()
+            else:
+                self.search_bar.clear_search()
+                self.host_list.filter_hosts("")
+        except Exception:
+            pass
+
+    def _on_search_button_clicked(self, button):
         """Handle search button click."""
-        self.search_bar.grab_focus()
+        self._toggle_search()
+
+    def _on_search_action(self, action, param):
+        """Handle app.search action (keyboard/menu)."""
+        self._toggle_search()
+    
+    def _on_window_focus_changed(self, window, param):
+        """Hide search bar if window loses focus."""
+        if not self.get_has_focus() and self.search_bar.get_visible():
+            self.search_bar.clear_search()
+            self.search_bar.set_visible(False)
+            self.host_list.filter_hosts("")
+    
+    # Deprecated: status bar close is no longer used with toasts
+    def on_status_bar_close_clicked(self, button):
+        pass
     
     def _on_save_clicked(self, button):
         if not self.parser:
@@ -176,12 +203,12 @@ class MainWindow(Gtk.ApplicationWindow):
                 dialog.connect("response", lambda d, r: d.destroy())
                 dialog.present()
             self.parser.write(backup=True)
-            self.parser.parse() # Re-parse to get a fresh 'original_lines' for dirty check
-            # Reload hosts in the list to ensure the UI references the fresh list instance
+            self.parser.parse()
+            
             self.host_list.load_hosts(self.parser.config.hosts)
             self.is_dirty = False
             self.save_button.set_sensitive(False)
-            self._update_status("Configuration saved successfully")
+            self._update_status(_("Configuration saved successfully"))
         except Exception as e:
             self._show_error(f"Failed to save configuration: {e}")
     
@@ -205,7 +232,7 @@ class MainWindow(Gtk.ApplicationWindow):
             self.parser.config.add_host(host)
             self.is_dirty = True
             self.save_button.set_sensitive(True)
-            self._update_status("Host added")
+            self._update_status(_("Host added"))
             self.host_editor.set_visible(True)
             self.host_editor.load_host(host)
     
@@ -215,7 +242,7 @@ class MainWindow(Gtk.ApplicationWindow):
             self.parser.config.remove_host(host)
             self.is_dirty = True
             self.save_button.set_sensitive(True)
-            self._update_status("Host deleted")
+            self._update_status(_("Host deleted"))
             
             if not self.parser.config.hosts:
                 self.host_editor.current_host = None
@@ -243,11 +270,11 @@ class MainWindow(Gtk.ApplicationWindow):
     def _on_open_config(self, action, param):
         """Handle open config action."""
         dialog = Gtk.FileChooserNative.new(
-            title="Open SSH Config File",
+            title=_("Open SSH Config File"),
             parent=self,
             action=Gtk.FileChooserAction.OPEN,
-            accept_label="Open",
-            cancel_label="Cancel"
+            accept_label=_("Open"),
+            cancel_label=_("Cancel")
         )
 
         def on_file_chooser_response(dlg, response_id):
@@ -271,7 +298,6 @@ class MainWindow(Gtk.ApplicationWindow):
 
         dialog = PreferencesDialog(self)
 
-        # Pre-fill from current state
         current_prefs = {
             "config_path": str(self.parser.config_path) if self.parser else "",
             "backup_dir": str(getattr(self.parser, "backup_dir", "") or ""),
@@ -283,16 +309,13 @@ class MainWindow(Gtk.ApplicationWindow):
 
         def on_response(dlg, response_id):
             if response_id == Gtk.ResponseType.OK:
-                # Preferences are handled directly here
                 prefs = dlg.get_preferences()
-                # Apply parser preferences
                 if self.parser:
                     if prefs.get("config_path"):
                         self.parser.config_path = Path(prefs["config_path"]) 
                     self.parser.auto_backup_enabled = bool(prefs.get("auto_backup", True))
                     backup_dir_val = prefs.get("backup_dir") or None
                     self.parser.backup_dir = Path(backup_dir_val).expanduser() if backup_dir_val else None
-                # Apply editor font size
                 font_size = int(prefs.get("editor_font_size") or 12)
                 self._editor_font_size = font_size
                 try:
@@ -301,112 +324,69 @@ class MainWindow(Gtk.ApplicationWindow):
                     Gtk.StyleContext.add_provider_for_display(
                         Gtk.Display.get_default(), provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
                 except Exception:
-                    # Ignore if CSS application fails
                     pass
-                # Apply dark theme preference
                 prefer_dark = bool(prefs.get("prefer_dark_theme", False))
                 self._prefer_dark_theme = prefer_dark
                 try:
-                    settings = Gtk.Settings.get_default()
-                    if settings is not None and hasattr(settings, 'set_property'):
-                        settings.set_property("gtk-application-prefer-dark-theme", prefer_dark)
+                    style_manager = Adw.StyleManager.get_default()
+                    if style_manager is not None:
+                        style_manager.set_color_scheme(
+                            Adw.ColorScheme.PREFER_DARK if prefer_dark else Adw.ColorScheme.DEFAULT
+                        )
                 except Exception:
-                    # Ignore if theme setting fails
                     pass
-                # Reload config if path changed
                 if self.parser:
                     self._load_config()
-                self._update_status("Preferences saved")
+                self._update_status(_("Preferences saved"))
             dlg.destroy()
 
         dialog.connect("response", on_response)
         dialog.present()
     
     def _on_about(self, action, param):
-        about_dialog = Gtk.AboutDialog(
+        """Show the about dialog using Adwaita's AboutWindow."""
+        about_window = Adw.AboutWindow(
             transient_for=self,
-            program_name="SSH Config Studio",
+            application_name=_("SSH Config Studio"),
+            application_icon="com.sshconfigstudio.app",
             version="1.0.0",
-            comments="A native Python + GTK application for managing SSH configuration files",
+            developer_name=_("Made with ❤️ by Mahyar Darvishi"),
             website="https://github.com/BuddySirJava/ssh-config-studio",
-            website_label="GitHub Repository",
-            copyright="Made with ❤️ by Mahyar Darvishi",
+            issue_url="https://github.com/BuddySirJava/ssh-config-studio/issues",
+            developers=["Mahyar Darvishi"],
+            designers=["Mahyar Darvishi"],
+            artists=["Mahyar Darvishi"],
+            translator_credits=_("translator-credits"),
+            copyright=_("© 2024 Mahyar Darvishi"),
             license_type=Gtk.License.MIT_X11,
-            logo=Gdk.Texture.new_for_pixbuf(GdkPixbuf.Pixbuf.new_from_file_at_size("ui/assets/icon.png", 128, 128))
+            comments=_("A native Python + GTK application for managing SSH configuration files"),
         )
-        about_dialog.present()
-
-        def _post_present():
-            try:
-                self._disable_label_selection(about_dialog)
-                # Try to focus a button (e.g., Close) to avoid any label getting focus/selection.
-                self._focus_first_button(about_dialog)
-            except Exception:
-                # Ignore if focusing button fails.
-                pass
-            return False
-
-        GLib.idle_add(_post_present)
-
-    def _disable_label_selection(self, root_widget: Gtk.Widget):
-        """Recursively disable selection on all labels within a widget tree."""
+        
         try:
-            if isinstance(root_widget, Gtk.Label):
-                try:
-                    root_widget.set_selectable(False)
-                except Exception:
-                    # Ignore if setting selectable fails.
-                    pass
-                try:
-                    # Clear any existing selection.
-                    root_widget.select_region(0, 0)
-                except Exception:
-                    # Ignore if clearing selection fails.
-                    pass
-
-            child = root_widget.get_first_child()
-            while child is not None:
-                self._disable_label_selection(child)
-                child = child.get_next_sibling()
+            texture = Gdk.Texture.new_from_resource("/com/sshconfigstudio/app/media/icon_256.png")
+            about_window.set_logo(texture)
         except Exception:
-            # Ignore if recursion fails.
             pass
+        about_window.set_debug_info(f"""
+SSH Config Studio {about_window.get_version()}
+GTK {Gtk.get_major_version()}.{Gtk.get_minor_version()}.{Gtk.get_micro_version()}
+Adwaita {Adw.get_major_version()}.{Adw.get_minor_version()}.{Adw.get_micro_version()}
+Python {sys.version}
+        """.strip())
+        
+        about_window.present()
 
-    def _focus_first_button(self, root_widget: Gtk.Widget) -> bool:
-        """Recursively find the first button in the widget tree and focus it."""
-        try:
-            if isinstance(root_widget, Gtk.Button):
-                try:
-                    root_widget.grab_focus()
-                    return True
-                except Exception:
-                    return False
-
-            child = root_widget.get_first_child()
-            while child is not None:
-                if self._focus_first_button(child):
-                    return True
-                child = child.get_next_sibling()
-        except Exception:
-            return False
-        return False
-    
     def _update_status(self, message: str):
         """Update the status bar with a message."""
-        self.status_label.set_text(message)
-        self.status_bar.set_revealed(True)
-        
-        GLib.timeout_add_seconds(3, self._hide_status)
+        self.show_toast(message)
     
     def _hide_status(self):
         """Hide the status bar."""
-        self.status_bar.set_revealed(False)
         return False
     
     def _show_error(self, message: str):
         """Show an error message in the status bar."""
-        self.status_bar.set_message_type(Gtk.MessageType.ERROR)
-        self._update_status(message)
+        self.show_toast(message)
     
     def _show_warning(self, title: str, message: str):
         """Show a warning dialog."""

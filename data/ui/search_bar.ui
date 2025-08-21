@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <template class="SearchBar" parent="GtkBox">
+    <property name="orientation">horizontal</property>
+    <property name="spacing">12</property>
+    <style>
+      <class name="search-bar"/>
+      <class name="toolbar"/>
+    </style>
+    <child>
+      <object class="GtkSearchEntry" id="search_entry">
+        <property name="placeholder-text" translatable="yes">Search hosts, hostnames, users, keys...</property>
+        <property name="tooltip-text" translatable="yes">Search across all SSH host configurations</property>
+        <property name="margin-start">6</property>
+        <property name="margin-end">12</property>
+        <property name="margin-top">6</property>
+        <property name="margin-bottom">6</property>
+        <property name="hexpand">True</property>
+      </object>
+    </child>
+  </template>
+</interface>

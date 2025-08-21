@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <template class="HostList" parent="GtkBox">
+    <property name="orientation">vertical</property>
+    <property name="spacing">12</property>
+    <style>
+      <class name="host-list"/>
+    </style>
+    <child>
+      <object class="GtkBox">
+        <property name="orientation">horizontal</property>
+        <property name="hexpand">True</property>
+        <property name="spacing">12</property>
+        <style>
+          <class name="host-list-header"/>
+        </style>
+        <child>
+          <object class="GtkLabel">
+            <property name="label" translatable="yes">SSH Hosts</property>
+            <property name="xalign">0</property>
+            <property name="margin-start">16</property>
+            <style>
+              <class name="title"/>
+            </style>
+          </object>
+        </child>
+        <child>
+          <object class="GtkBox">
+            <property name="orientation">horizontal</property>
+            <property name="spacing">6</property>
+            <style>
+              <class name="linked"/>
+            </style>
+            <child>
+              <object class="GtkButton" id="add_button">
+                <property name="icon-name">list-add-symbolic</property>
+                <property name="tooltip-text" translatable="yes">Add Host</property>
+                <style>
+                  <class name="flat"/>
+                </style>
+              </object>
+            </child>
+            <child>
+              <object class="GtkButton" id="duplicate_button">
+                <property name="icon-name">edit-copy-symbolic</property>
+                <property name="tooltip-text" translatable="yes">Duplicate Host</property>
+                <style>
+                  <class name="flat"/>
+                </style>
+              </object>
+            </child>
+            <child>
+              <object class="GtkButton" id="delete_button">
+                <property name="icon-name">edit-delete-symbolic</property>
+                <property name="tooltip-text" translatable="yes">Delete Host</property>
+                <style>
+                  <class name="flat"/>
+                </style>
+              </object>
+            </child>
+          </object>
+        </child>
+        <child>
+          <object class="GtkLabel" id="count_label">
+            <property name="label" translatable="yes">0 hosts</property>
+            <style>
+              <class name="dim-label"/>
+            </style>
+          </object>
+        </child>
+      </object>
+    </child>
+    <child>
+      <object class="GtkScrolledWindow">
+        <property name="hexpand">True</property>
+        <property name="vexpand">True</property>
+        <property name="min-content-width">350</property>
+        <style>
+          <class name="host-list-scroll"/>
+        </style>
+        <child>
+          <object class="GtkTreeView" id="tree_view">
+            <property name="headers-visible">True</property>
+            <property name="search-column">0</property>
+            <property name="hexpand">True</property>
+            <property name="vexpand">True</property>
+            <style>
+              <class name="host-list-tree"/>
+            </style>
+          </object>
+        </child>
+      </object>
+    </child>
+  </template>
+</interface>

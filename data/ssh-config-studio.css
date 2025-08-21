@@ -1,0 +1,390 @@
+
+/* Main application window */
+.main-window {
+  background-color: @theme_bg_color;
+}
+
+/* Header bar improvements */
+.main-window headerbar {
+  background: @theme_bg_color;
+  border-bottom: 1px solid @borders;
+}
+
+.main-window headerbar button.flat {
+  background: transparent;
+  border: none;
+  padding: 8px;
+  border-radius: 3px;
+}
+
+.main-window headerbar button.flat:hover {
+  background: @theme_button_bg_color;
+}
+
+.main-window headerbar button.flat:active {
+  background: @theme_button_bg_color;
+}
+
+/* Search bar styling */
+.search-bar {
+  background: @theme_bg_color;
+  border-bottom: 1px solid @borders;
+  padding: 8px 12px;
+  transition: all 0.2s ease;
+}
+
+.search-bar .toolbar {
+  background: transparent;
+}
+
+.search-bar entry {
+  background: @theme_entry_bg_color;
+  border: 1px solid @borders;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.search-bar entry:focus {
+  border-color: @theme_selected_bg_color;
+  box-shadow: 0 0 0 2px alpha(@theme_selected_bg_color, 0.3);
+}
+
+/* Search button styling */
+.main-window headerbar button#search_button {
+  background: transparent;
+  border: none;
+  padding: 8px;
+  border-radius: 3px;
+  transition: all 0.2s ease;
+}
+
+.main-window headerbar button#search_button:hover {
+  background: alpha(@theme_fg_color, 0.1);
+}
+
+.main-window headerbar button#search_button:active {
+  background: alpha(@theme_fg_color, 0.2);
+}
+
+/* Host list improvements */
+.host-list {
+  background: @theme_bg_color;
+}
+
+.host-list-header {
+  background: @theme_bg_color;
+  border-bottom: 1px solid @borders;
+  padding: 16px;
+}
+
+.host-list-header .title {
+  font-size: 18px;
+  font-weight: 600;
+  color: @theme_fg_color;
+  margin: 0;
+}
+
+.host-list-scroll {
+  background: @theme_bg_color;
+}
+
+.host-list-tree {
+  background: @theme_bg_color;
+}
+
+.host-list-tree treeview {
+  background: @theme_bg_color;
+}
+
+.host-list-tree treeview:selected {
+  background: @theme_selected_bg_color;
+  color: @theme_selected_fg_color;
+}
+
+.host-list-tree treeview:hover {
+  background: alpha(@theme_selected_bg_color, 0.1);
+}
+
+/* Host editor improvements */
+.host-editor {
+  background: @theme_bg_color;
+  border-left: 1px solid @borders;
+}
+
+.editor-pane {
+  background: @theme_bg_color;
+}
+
+.editor-pane .title {
+  font-size: 20px;
+  font-weight: 700;
+  color: @theme_fg_color;
+  margin: 0;
+  padding: 0;
+}
+
+/* Field labels */
+.field-label {
+  font-weight: 600;
+  color: @theme_fg_color;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+/* Field entries */
+.field-entry {
+  background: @theme_entry_bg_color;
+  border: 1px solid @borders;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.field-entry:focus {
+  border-color: @theme_selected_bg_color;
+  box-shadow: 0 0 0 2px alpha(@theme_selected_bg_color, 0.3);
+}
+
+/* Preferences dialog */
+.preferences-grid {
+  background: @theme_bg_color;
+}
+
+/* Button improvements */
+button {
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px alpha(@borders, 0.2);
+}
+
+button:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px alpha(@borders, 0.1);
+}
+
+button.suggested-action {
+  background: @theme_selected_bg_color;
+  color: @theme_selected_fg_color;
+  font-weight: 600;
+}
+
+button.suggested-action:hover {
+  background: shade(@theme_selected_bg_color, 1.1);
+}
+
+button.destructive-action {
+  background: @theme_error_color;
+  color: @theme_error_fg_color;
+}
+
+button.destructive-action:hover {
+  background: shade(@theme_error_color, 1.1);
+}
+
+/* Linked button groups */
+.linked button:not(:first-child) {
+  border-left: 1px solid @borders;
+  border-radius: 0;
+}
+
+.linked button:first-child {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.linked button:last-child {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.linked button:only-child {
+  border-radius: 6px;
+}
+
+/* Entry field improvements */
+entry {
+  padding: 8px 12px;
+  border: 1px solid @borders;
+  border-radius: 6px;
+  background: @theme_entry_bg_color;
+  color: @theme_entry_fg_color;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+entry:focus {
+  border-color: @theme_selected_bg_color;
+  box-shadow: 0 0 0 2px alpha(@theme_selected_bg_color, 0.3);
+}
+
+entry.error {
+  border-color: #e01b24;
+  background: alpha(#e01b24, 0.05);
+}
+
+/* Switch improvements */
+switch {
+  background: @theme_bg_color;
+  border-radius: 20px;
+  padding: 2px;
+}
+
+switch slider {
+  background: @theme_fg_color;
+  border-radius: 50%;
+  min-width: 20px;
+  min-height: 20px;
+}
+
+switch:checked {
+  background: @theme_selected_bg_color;
+}
+
+switch:checked slider {
+  background: @theme_selected_fg_color;
+}
+
+/* Notebook improvements */
+notebook {
+  background: @theme_bg_color;
+}
+
+notebook tab {
+  background: @theme_bg_color;
+  border: 1px solid @borders;
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  padding: 8px 12px;
+  margin-right: 2px;
+}
+
+notebook tab:checked {
+  background: @theme_bg_color;
+  border-bottom: 1px solid @theme_bg_color;
+}
+
+notebook tab:hover:not(:checked) {
+  background: alpha(@theme_selected_bg_color, 0.1);
+}
+
+notebook stack {
+  background: @theme_bg_color;
+  border: 1px solid @borders;
+  border-radius: 0 6px 6px 6px;
+  padding: 16px;
+}
+
+/* Toast improvements */
+toast {
+  background: @theme_bg_color;
+  border: 1px solid @borders;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px alpha(@borders, 0.3);
+}
+
+/* Status indicators */
+.status-success {
+  color: #26a269;
+}
+
+.status-warning {
+  color: #cd9309;
+}
+
+.status-error {
+  color: #e01b24;
+}
+
+.status-info {
+  color: #3584e4;
+}
+
+/* Error labels */
+.error-label {
+  color: #e01b24;
+  font-size: 12px;
+  font-style: italic;
+}
+
+/* Dimmed labels */
+.dim-label {
+  color: @theme_disabled_fg_color;
+  font-size: 12px;
+}
+
+/* Accessibility improvements */
+*:focus {
+  outline: 2px solid @theme_selected_bg_color;
+  outline-offset: 2px;
+}
+
+/* About window improvements */
+aboutwindow {
+  background: @theme_bg_color;
+}
+
+aboutwindow .title {
+  font-size: 24px;
+  font-weight: 700;
+  color: @theme_fg_color;
+}
+
+aboutwindow .subtitle {
+  font-size: 16px;
+  color: @theme_disabled_fg_color;
+}
+
+aboutwindow .description {
+  font-size: 14px;
+  line-height: 1.5;
+  color: @theme_fg_color;
+}
+
+aboutwindow .developer-name {
+  font-weight: 600;
+  color: @theme_selected_bg_color;
+}
+
+aboutwindow .copyright {
+  font-size: 12px;
+  color: @theme_disabled_fg_color;
+}
+
+aboutwindow .website-link {
+  color: @theme_selected_bg_color;
+  text-decoration: none;
+}
+
+aboutwindow .website-link:hover {
+  text-decoration: underline;
+}
+
+aboutwindow .license-text {
+  font-family: monospace;
+  font-size: 12px;
+  background: alpha(@theme_fg_color, 0.05);
+  border: 1px solid @borders;
+  border-radius: 6px;
+  padding: 12px;
+  margin: 8px 0;
+}
+
+aboutwindow .debug-info {
+  font-family: monospace;
+  font-size: 11px;
+  background: alpha(@theme_fg_color, 0.03);
+  border: 1px solid @borders;
+  border-radius: 6px;
+  padding: 8px;
+  margin: 8px 0;
+  color: @theme_disabled_fg_color;
+}
