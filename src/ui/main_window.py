@@ -354,10 +354,7 @@ class MainWindow(Adw.ApplicationWindow):
             website="https://github.com/BuddySirJava/ssh-config-studio",
             issue_url="https://github.com/BuddySirJava/ssh-config-studio/issues",
             developers=["Mahyar Darvishi"],
-            designers=["Mahyar Darvishi"],
-            artists=["Mahyar Darvishi"],
-            translator_credits=_("translator-credits"),
-            copyright=_("© 2024 Mahyar Darvishi"),
+            copyright=_("© 2025 Mahyar Darvishi"),
             license_type=Gtk.License.MIT_X11,
             comments=_("A native Python + GTK application for managing SSH configuration files"),
         )
