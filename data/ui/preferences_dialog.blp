@@ -1,0 +1,135 @@
+using Gtk 4.0;
+using Adw 1;
+
+Adjustment editor_font_adjustment {
+  lower: 9;
+  upper: 24;
+  step-increment: 1;
+  page-increment: 2;
+  value: 12;
+}
+
+template $PreferencesDialog: Adw.PreferencesWindow {
+  title: _("Preferences");
+  modal: true;
+  resizable: false;
+  default-width: 600;
+  default-height: 500;
+
+  Adw.PreferencesPage {
+    title: _("General");
+    icon-name: "preferences-system-symbolic";
+
+    Adw.PreferencesGroup {
+      title: _("Configuration");
+      description: _("SSH configuration file and backup settings");
+
+      Adw.ActionRow {
+        title: _("SSH Config Path");
+        subtitle: _("Path to your SSH configuration file");
+
+        [suffix]
+        Box {
+          orientation: horizontal;
+          spacing: 8;
+
+          Entry config_path_entry {
+            placeholder-text: _("~/.ssh/config");
+            width-request: 200;
+          }
+
+          Button config_path_button {
+            icon-name: "document-open-symbolic";
+            tooltip-text: _("Choose Config File");
+
+            styles [
+              "flat",
+            ]
+          }
+        }
+      }
+
+      Adw.ActionRow {
+        title: _("Backup Directory");
+        subtitle: _("Directory where backups are stored");
+
+        [suffix]
+        Box {
+          orientation: horizontal;
+          spacing: 8;
+
+          Entry backup_dir_entry {
+            placeholder-text: _("~/.ssh");
+            width-request: 200;
+          }
+
+          Button backup_dir_button {
+            icon-name: "folder-open-symbolic";
+            tooltip-text: _("Choose Backup Directory");
+
+            styles [
+              "flat",
+            ]
+          }
+        }
+      }
+
+      Adw.ActionRow {
+        title: _("Enable Auto-Backup");
+        subtitle: _("Automatically create backups before saving changes");
+        activatable-widget: auto_backup_switch;
+
+        [suffix]
+        Switch auto_backup_switch {
+          valign: center;
+          active: true;
+        }
+      }
+    }
+
+    Adw.PreferencesGroup {
+      title: _("Editor");
+      description: _("Text editor appearance and behavior");
+
+      Adw.ActionRow {
+        title: _("Font Size");
+        subtitle: _("Size of text in the editor");
+
+        [suffix]
+        SpinButton editor_font_spin {
+          adjustment: editor_font_adjustment;
+          width-request: 80;
+        }
+      }
+
+      Adw.ActionRow {
+        title: _("Wrap Long Lines in Raw Editor");
+        subtitle: _("Wrap long lines in the raw configuration editor");
+        activatable-widget: raw_wrap_switch;
+
+        [suffix]
+        Switch raw_wrap_switch {
+          valign: center;
+          active: false;
+        }
+      }
+    }
+
+    Adw.PreferencesGroup {
+      title: _("Appearance");
+      description: _("Visual appearance and theme settings");
+
+      Adw.ActionRow {
+        title: _("Prefer Dark Theme");
+        subtitle: _("Use dark theme when available");
+        activatable-widget: dark_theme_switch;
+
+        [suffix]
+        Switch dark_theme_switch {
+          valign: center;
+          active: false;
+        }
+      }
+    }
+  }
+}

@@ -3,7 +3,6 @@ gi.require_version('Gtk', '4.0')
 from gi.repository import Gtk, GObject, Pango
 from gettext import gettext as _
 
-# Support both installed package and local source tree
 try:
 	from ssh_config_studio.ssh_config_parser import SSHHost, SSHOption
 except ImportError:
@@ -14,14 +13,9 @@ class HostList(Gtk.Box):
     
     __gtype_name__ = "HostList"
 
-    # Template children
-    tree_view = Gtk.Template.Child()
+    list_box = Gtk.Template.Child()
     count_label = Gtk.Template.Child()
-    add_button = Gtk.Template.Child()
-    duplicate_button = Gtk.Template.Child()
-    delete_button = Gtk.Template.Child()
 
-    # Custom signals
     __gsignals__ = {
         'host-selected': (GObject.SignalFlags.RUN_LAST, None, (object,)),
         'host-added': (GObject.SignalFlags.RUN_LAST, None, (object,)),
@@ -34,12 +28,15 @@ class HostList(Gtk.Box):
         self.hosts = []
         self.filtered_hosts = []
         self.current_filter = ""
+        self._selected_host = None
         
         self._connect_signals()
         
         self.list_store = Gtk.ListStore(str, str, str, str, str, object)
-        self.tree_view.set_model(self.list_store)
-        self._setup_columns()
+        if hasattr(self, 'tree_view') and self.tree_view is not None:
+            self.tree_view.set_model(self.list_store)
+            self._setup_columns()
+        self._rebuild_listbox_rows()
     
     def _setup_columns(self):
         def add_text_column(title: str, col_index: int, expand: bool = False, min_width: int | None = None):
@@ -60,12 +57,11 @@ class HostList(Gtk.Box):
         add_text_column(_("Identity"), 4, True, 120)
 
     def _connect_signals(self):
-        self.add_button.connect("clicked", self._on_add_clicked)
-        self.duplicate_button.connect("clicked", self._on_duplicate_clicked)
-        self.delete_button.connect("clicked", self._on_delete_clicked)
-        
-        selection = self.tree_view.get_selection()
-        selection.connect("changed", self._on_selection_changed)
+        if hasattr(self, 'tree_view') and self.tree_view is not None:
+            selection = self.tree_view.get_selection()
+            selection.connect("changed", self._on_selection_changed)
+        if hasattr(self, 'list_box') and self.list_box is not None:
+            self.list_box.connect("row-selected", self._on_row_selected)
 
     def load_hosts(self, hosts: list):
         self.hosts = hosts
@@ -88,15 +84,19 @@ class HostList(Gtk.Box):
                     (host.get_option('IdentityFile') or "")
                 ).lower()
 
-                if query.lower() in searchable_text:
+                if self.current_filter in searchable_text:
                     self.filtered_hosts.append(host)
 
         self._refresh_view()
         self._update_count()
 
     def _refresh_view(self):
-        selection = self.tree_view.get_selection()
-        model, selected_iter = selection.get_selected()
+        if hasattr(self, 'tree_view') and self.tree_view is not None:
+            selection = self.tree_view.get_selection()
+            model, selected_iter = selection.get_selected()
+        else:
+            model = self.list_store
+            selected_iter = None
         previously_selected_host = None
         if selected_iter:
             previously_selected_host = model.get_value(selected_iter, 5)
@@ -119,6 +119,8 @@ class HostList(Gtk.Box):
                 host
             ])
 
+        if hasattr(self, 'list_box') and self.list_box is not None:
+            self._rebuild_listbox_rows()
         if previously_selected_host:
             self.select_host(previously_selected_host)
 
@@ -137,13 +139,8 @@ class HostList(Gtk.Box):
             host = model.get_value(tree_iter, 5)
             self.emit("host-selected", host)
 
-            self.duplicate_button.set_sensitive(True)
-            self.delete_button.set_sensitive(True)
-        else:
-            self.duplicate_button.set_sensitive(False)
-            self.delete_button.set_sensitive(False)
-
-    def _on_add_clicked(self, button):
+    def add_host(self):
+        """Add a new host."""
         new_host = SSHHost(patterns=["new-host"])
         self.emit("host-added", new_host)
 
@@ -151,11 +148,10 @@ class HostList(Gtk.Box):
 
         self.select_host(new_host)
 
-    def _on_duplicate_clicked(self, button):
-        selection = self.tree_view.get_selection()
-        model, tree_iter = selection.get_selected()
-        if tree_iter:
-            original_host = model.get_value(tree_iter, 5)
+    def duplicate_host(self):
+        """Duplicate the selected host."""
+        original_host = self._get_selected_host()
+        if original_host is not None:
             duplicated_host = self._duplicate_host(original_host)
 
             self.emit("host-added", duplicated_host)
@@ -164,11 +160,10 @@ class HostList(Gtk.Box):
 
             self.select_host(duplicated_host)
 
-    def _on_delete_clicked(self, button):
-        selection = self.tree_view.get_selection()
-        model, tree_iter = selection.get_selected()
-        if tree_iter:
-            host = model.get_value(tree_iter, 5)
+    def delete_host(self):
+        """Delete the selected host."""
+        host = self._get_selected_host()
+        if host is not None:
 
             dialog = Gtk.MessageDialog(
                 transient_for=self.get_root(),
@@ -210,28 +205,81 @@ class HostList(Gtk.Box):
 
         return duplicated_host
 
-    def _host_matches_filter(self, host: SSHHost) -> bool:
-        if not self.current_filter:
-            return True
-
-        searchable_text = (
-            " ".join(host.patterns) + " " +
-            (host.get_option('HostName') or "") + " " +
-            (host.get_option('User') or "") + " " +
-            (host.get_option('IdentityFile') or "")
-        ).lower()
-
-        return self.current_filter in searchable_text
 
     def select_host(self, host: SSHHost):
         for index, row in enumerate(self.list_store):
             if row[5] == host:
-                tree_iter = self.list_store.iter_nth_child(None, index)
-                if tree_iter is None:
-                    return
-                selection = self.tree_view.get_selection()
-                selection.select_iter(tree_iter)
-                path = self.list_store.get_path(tree_iter)
-                if path is not None:
-                    self.tree_view.scroll_to_cell(path, None, False, 0, 0)
+                if hasattr(self, 'tree_view') and self.tree_view is not None:
+                    tree_iter = self.list_store.iter_nth_child(None, index)
+                    if tree_iter is None:
+                        return
+                    selection = self.tree_view.get_selection()
+                    selection.select_iter(tree_iter)
+                    path = self.list_store.get_path(tree_iter)
+                    if path is not None:
+                        self.tree_view.scroll_to_cell(path, None, False, 0, 0)
+                elif hasattr(self, 'list_box') and self.list_box is not None:
+                    row_widget = self.list_box.get_row_at_index(index)
+                    if row_widget is not None:
+                        self.list_box.select_row(row_widget)
+                        try:
+                            row_widget.grab_focus()
+                        except Exception:
+                            pass
                 break
+
+    def _rebuild_listbox_rows(self):
+        if not hasattr(self, 'list_box') or self.list_box is None:
+            return
+        # Clear existing rows
+        while (child := self.list_box.get_first_child()) is not None:
+            self.list_box.remove(child)
+
+        for row in self.list_store:
+            host = row[5]
+            patterns = row[0]
+            hostname = row[1]
+            user = row[2]
+            # Build a two-line row with subtle secondary text
+            box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+            title = Gtk.Label(label=patterns, xalign=0)
+            title.add_css_class("title-4")
+            subtitle = Gtk.Label(label=f"{user}@{hostname}" if hostname or user else hostname or patterns, xalign=0)
+            subtitle.add_css_class("dim-label")
+            box.append(title)
+            box.append(subtitle)
+
+            list_row = Gtk.ListBoxRow()
+            list_row.set_child(box)
+            list_row.set_selectable(True)
+            list_row.set_activatable(True)
+            list_row._host_ref = host
+            self.list_box.append(list_row)
+
+    def _on_row_selected(self, listbox, row):
+        if row is None:
+            return
+        host = getattr(row, "_host_ref", None)
+        if host is not None:
+            self._selected_host = host
+            self.emit("host-selected", host)
+
+    def _get_selected_host(self):
+        # Prefer ListBox selection when available
+        if hasattr(self, 'list_box') and self.list_box is not None:
+            try:
+                row = self.list_box.get_selected_row()
+            except Exception:
+                row = None
+            if row is not None:
+                host = getattr(row, "_host_ref", None)
+                if host is not None:
+                    return host
+        # Fallback to TreeView selection
+        if hasattr(self, 'tree_view') and self.tree_view is not None:
+            selection = self.tree_view.get_selection()
+            model, tree_iter = selection.get_selected()
+            if tree_iter:
+                return model.get_value(tree_iter, 5)
+        # Fallback to last selected cache
+        return self._selected_host

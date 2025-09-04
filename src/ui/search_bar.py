@@ -6,30 +6,33 @@ from gettext import gettext as _
 
 @Gtk.Template(resource_path="/com/sshconfigstudio/app/ui/search_bar.ui")
 class SearchBar(Gtk.Box):
-    
+
     __gtype_name__ = "SearchBar"
 
     search_entry = Gtk.Template.Child()
+    gtk_search_bar = Gtk.Template.Child()
 
     __gsignals__ = {
         'search-changed': (GObject.SignalFlags.RUN_LAST, None, (str,))
     }
-    
+
     def __init__(self):
         super().__init__()
-        
-        self.search_timeout = None
-        self._connect_signals()
-    
-    
 
+        self.search_timeout = None
+        try:
+            self.gtk_search_bar.set_key_capture_widget(self)
+            self.gtk_search_bar.connect_entry(self.search_entry)
+        except Exception:
+            pass
+        self._connect_signals()
     def _connect_signals(self):
         self.search_entry.connect("search-changed", self._on_search_changed)
         self.search_entry.connect("changed", self._on_text_changed)
+        self.search_entry.connect("activate", self._on_search_activate)
 
     def _on_search_changed(self, entry):
         query = entry.get_text()
-        self._update_clear_button(query)
 
         if self.search_timeout:
             GLib.source_remove(self.search_timeout)
@@ -38,14 +41,21 @@ class SearchBar(Gtk.Box):
 
     def _on_text_changed(self, entry):
         query = entry.get_text()
-        self._update_clear_button(query)
+        if self.search_timeout:
+            GLib.source_remove(self.search_timeout)
+        self.search_timeout = GLib.timeout_add(200, self._perform_search, query)
+
+    def _on_search_activate(self, entry):
+        query = entry.get_text()
+        if self.search_timeout:
+            GLib.source_remove(self.search_timeout)
+            self.search_timeout = None
+        self._perform_search(query)
 
     def _on_clear_clicked(self, button):
         self.search_entry.set_text("")
         self.search_entry.grab_focus()
 
-    def _update_clear_button(self, query: str):
-        pass
 
     def _perform_search(self, query: str):
         self.emit("search-changed", query)
@@ -60,10 +70,21 @@ class SearchBar(Gtk.Box):
 
     def clear_search(self):
         self.search_entry.set_text("")
+        self.emit("search-changed", "")
 
     def grab_focus(self):
+        try:
+            self.gtk_search_bar.set_search_mode(True)
+        except Exception:
+            pass
         self.search_entry.grab_focus()
 
     def get_parent_window(self):
-        """Get the parent window for proper integration."""
         return self.get_root()
+
+    def set_search_mode(self, visible: bool):
+        try:
+            self.gtk_search_bar.set_search_mode(bool(visible))
+        except Exception:
+            pass
+        self.set_visible(bool(visible))

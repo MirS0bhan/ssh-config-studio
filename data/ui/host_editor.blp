@@ -1,0 +1,264 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $HostEditor: Box {
+  orientation: vertical;
+  spacing: 16;
+
+  styles [
+    "editor-pane",
+    "host-editor",
+  ]
+
+  Adw.Clamp {
+    maximum-size: 900;
+    tightening-threshold: 700;
+
+    child: Box {
+      orientation: vertical;
+      spacing: 6;
+      margin-top: 12;
+      margin-start: 12;
+      margin-end: 12;
+
+      Box {
+        orientation: horizontal;
+        hexpand: true;
+        spacing: 12;
+
+        Adw.ViewSwitcher {
+          stack: viewstack;
+          policy: wide;
+          halign: start;
+
+          styles [
+            "view-switcher",
+          ]
+        }
+
+        Box {
+          orientation: horizontal;
+          spacing: 6;
+          halign: end;
+          hexpand: false;
+
+          Button revert_button {
+            label: _("Revert");
+            sensitive: false;
+
+            styles [
+              "destructive-action",
+            ]
+          }
+
+          Button save_button {
+            label: _("Save");
+            sensitive: false;
+
+            styles [
+              "suggested-action",
+            ]
+          }
+        }
+      }
+
+      Separator {
+        orientation: horizontal;
+        margin-top: 6;
+      }
+    };
+  }
+
+  Adw.ViewStack viewstack {
+    vexpand: true;
+    notify::visible-child-name => $on_stack_changed() not-swapped;
+
+    Adw.ViewStackPage {
+      title: _("Settings");
+      icon-name: "preferences-system-symbolic";
+      name: "settings";
+
+      child: Adw.Clamp {
+        child: Adw.PreferencesPage {
+          Adw.PreferencesGroup {
+            title: _("Connection");
+
+            Adw.EntryRow patterns_entry {
+              title: _("Host pattern");
+            }
+
+            Label patterns_error_label {
+              xalign: 0;
+              visible: false;
+
+              styles [
+                "error-label",
+                "status-error",
+              ]
+            }
+
+            Adw.EntryRow hostname_entry {
+              title: _("Host name");
+            }
+
+            Adw.EntryRow user_entry {
+              title: _("Username");
+            }
+
+            Adw.EntryRow port_entry {
+              title: _("Port");
+            }
+
+            Label port_error_label {
+              xalign: 0;
+              visible: false;
+
+              styles [
+                "error-label",
+                "status-error",
+              ]
+            }
+          }
+
+          Adw.PreferencesGroup {
+            title: _("Authentication");
+
+            Adw.EntryRow identity_entry {
+              title: _("Identity file");
+
+              [suffix]
+              Button identity_button {
+                icon-name: "document-open-symbolic";
+                tooltip-text: _("Choose Identity File");
+              }
+            }
+
+            Adw.ActionRow {
+              title: _("Forward agent");
+              activatable-widget: forward_agent_switch;
+
+              [suffix]
+              Switch forward_agent_switch {
+                valign: center;
+              }
+            }
+          }
+
+          Adw.PreferencesGroup {
+            title: _("Actions");
+
+            Adw.ActionRow copy_row {
+              title: _("Copy SSH command");
+              activatable: true;
+              subtitle: _("Copies the resolved SSH command to the clipboard");
+            }
+
+            Adw.ActionRow test_row {
+              title: _("Test connection");
+              activatable: true;
+              subtitle: _("Runs a quick non-interactive SSH check");
+            }
+          }
+        };
+      };
+    }
+
+    Adw.ViewStackPage {
+      title: _("Networking");
+      icon-name: "network-wired-symbolic";
+      name: "networking";
+
+      child: Adw.Clamp {
+        child: Adw.PreferencesPage {
+          Adw.PreferencesGroup {
+            title: _("Networking");
+
+            Adw.EntryRow proxy_jump_entry {
+              title: _("ProxyJump");
+            }
+
+            Adw.EntryRow proxy_cmd_entry {
+              title: _("ProxyCommand");
+            }
+
+            Adw.EntryRow local_forward_entry {
+              title: _("Local Forward");
+            }
+
+            Adw.EntryRow remote_forward_entry {
+              title: _("Remote Forward");
+            }
+          }
+        };
+      };
+    }
+
+    Adw.ViewStackPage {
+      title: _("Advanced");
+      icon-name: "applications-system-symbolic";
+      name: "advanced";
+
+      child: Adw.Clamp {
+        child: Adw.PreferencesPage {
+          Adw.PreferencesGroup {
+            title: _("Advanced");
+            description: _("Add custom SSH configuration options not available in the standard fields");
+
+            Adw.ActionRow {
+              title: _("Custom Options");
+
+              [suffix]
+              Button add_custom_button {
+                label: _("Add Custom Option");
+              }
+            }
+
+            ListBox custom_options_list {
+              selection-mode: none;
+
+              styles [
+                "custom-options-list",
+              ]
+            }
+          }
+        };
+      };
+    }
+
+    Adw.ViewStackPage {
+      title: _("Raw/Diff");
+      icon-name: "text-x-generic-symbolic";
+      name: "raw";
+
+      child: Adw.Clamp {
+        child: Adw.PreferencesPage {
+          Adw.PreferencesGroup {
+            title: _("Raw Configuration");
+            description: _("Edit the raw SSH configuration and see changes highlighted");
+
+            ScrolledWindow {
+              hexpand: true;
+              vexpand: true;
+
+              TextView raw_text_view {
+                monospace: true;
+                wrap-mode: none;
+                editable: true;
+                hexpand: true;
+                vexpand: true;
+                left-margin: 8;
+                right-margin: 8;
+                top-margin: 6;
+                bottom-margin: 6;
+
+                styles [
+                  "raw-editor",
+                ]
+              }
+            }
+          }
+        };
+      };
+    }
+  }
+}

@@ -1,390 +1,192 @@
-
-/* Main application window */
-.main-window {
-  background-color: @theme_bg_color;
+* {
+  transition: none;
+  animation: none;
 }
 
-/* Header bar improvements */
-.main-window headerbar {
-  background: @theme_bg_color;
-  border-bottom: 1px solid @borders;
-}
-
-.main-window headerbar button.flat {
-  background: transparent;
-  border: none;
-  padding: 8px;
-  border-radius: 3px;
-}
-
-.main-window headerbar button.flat:hover {
-  background: @theme_button_bg_color;
-}
-
-.main-window headerbar button.flat:active {
-  background: @theme_button_bg_color;
-}
-
-/* Search bar styling */
-.search-bar {
-  background: @theme_bg_color;
-  border-bottom: 1px solid @borders;
-  padding: 8px 12px;
-  transition: all 0.2s ease;
-}
-
-.search-bar .toolbar {
-  background: transparent;
-}
-
-.search-bar entry {
-  background: @theme_entry_bg_color;
-  border: 1px solid @borders;
-  border-radius: 6px;
-  padding: 8px 12px;
-  font-size: 14px;
-  transition: all 0.2s ease;
-}
-
-.search-bar entry:focus {
-  border-color: @theme_selected_bg_color;
-  box-shadow: 0 0 0 2px alpha(@theme_selected_bg_color, 0.3);
-}
-
-/* Search button styling */
-.main-window headerbar button#search_button {
-  background: transparent;
-  border: none;
-  padding: 8px;
-  border-radius: 3px;
-  transition: all 0.2s ease;
-}
-
-.main-window headerbar button#search_button:hover {
-  background: alpha(@theme_fg_color, 0.1);
-}
-
-.main-window headerbar button#search_button:active {
-  background: alpha(@theme_fg_color, 0.2);
-}
-
-/* Host list improvements */
-.host-list {
-  background: @theme_bg_color;
-}
-
-.host-list-header {
-  background: @theme_bg_color;
-  border-bottom: 1px solid @borders;
-  padding: 16px;
-}
-
-.host-list-header .title {
-  font-size: 18px;
-  font-weight: 600;
-  color: @theme_fg_color;
-  margin: 0;
-}
-
+AdwToolbarView,
+AdwHeaderBar,
+GtkSearchBar,
+.main-window,
+.preferences-grid,
+.host-editor,
+.editor-pane,
+.host-list,
 .host-list-scroll {
   background: @theme_bg_color;
 }
 
-.host-list-tree {
-  background: @theme_bg_color;
+AdwHeaderBar,
+GtkSearchBar,
+.main-window headerbar {
+  border-bottom: 1px solid @borders;
 }
 
-.host-list-tree treeview {
-  background: @theme_bg_color;
+.editor-toolbar {
+  padding: 6px 12px;
 }
 
-.host-list-tree treeview:selected {
+.editor-toolbar button {
+  padding: 6px 8px;
+  border-radius: 4px;
+}
+
+.editor-toolbar button.suggested-action {
   background: @theme_selected_bg_color;
   color: @theme_selected_fg_color;
 }
 
-.host-list-tree treeview:hover {
-  background: alpha(@theme_selected_bg_color, 0.1);
+.editor-toolbar button.destructive-action {
+  background: @destructive_bg_color;
+  color: @destructive_fg_color;
 }
 
-/* Host editor improvements */
-.host-editor {
-  background: @theme_bg_color;
-  border-left: 1px solid @borders;
+AdwNavigationView.sidebar,
+AdwNavigationSplitView.sidebar-overlay {
+  border-right: 0;
 }
 
-.editor-pane {
-  background: @theme_bg_color;
+.host-editor { border-left: 1px solid @borders; }
+
+.host-list listbox {
+  padding: 12px 0;
 }
 
-.editor-pane .title {
-  font-size: 20px;
-  font-weight: 700;
-  color: @theme_fg_color;
-  margin: 0;
-  padding: 0;
+.host-list listbox row {
+  margin: 8px 8px;
+  padding: 8px 12px;
+  border-radius: 6px;
 }
 
-/* Field labels */
+.host-list listbox row:hover {
+  background: alpha(@theme_fg_color, 0.06);
+}
+
+.host-list listbox row:selected {
+  background: @theme_selected_bg_color;
+  color: @theme_selected_fg_color;
+}
+
+.host-list .title,
+.host-list-header .title,
+.editor-pane .title,
 .field-label {
-  font-weight: 600;
-  color: @theme_fg_color;
-  font-size: 14px;
-  margin-bottom: 4px;
+  font-weight: 500;
 }
 
-/* Field entries */
-.field-entry {
+entry,
+.field-entry,
+textview#raw_text_view {
   background: @theme_entry_bg_color;
+  color: @theme_entry_fg_color;
   border: 1px solid @borders;
   border-radius: 6px;
   padding: 8px 12px;
-  font-size: 14px;
-  transition: all 0.2s ease;
 }
 
+entry:focus,
 .field-entry:focus {
   border-color: @theme_selected_bg_color;
-  box-shadow: 0 0 0 2px alpha(@theme_selected_bg_color, 0.3);
+  box-shadow: 0 0 0 2px alpha(@theme_selected_bg_color, 0.25);
 }
 
-/* Preferences dialog */
-.preferences-grid {
-  background: @theme_bg_color;
+.view-switcher {
+  margin: 0 12px;
 }
 
-/* Button improvements */
-button {
+.view-switcher button {
   padding: 8px 12px;
   border-radius: 6px;
   font-weight: 500;
-  transition: all 0.2s ease;
 }
 
-button:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px alpha(@borders, 0.2);
-}
-
-button:active {
-  transform: translateY(0);
-  box-shadow: 0 1px 2px alpha(@borders, 0.1);
-}
-
-button.suggested-action {
+.view-switcher button:checked {
   background: @theme_selected_bg_color;
   color: @theme_selected_fg_color;
-  font-weight: 600;
 }
 
-button.suggested-action:hover {
-  background: shade(@theme_selected_bg_color, 1.1);
-}
-
-button.destructive-action {
-  background: @theme_error_color;
-  color: @theme_error_fg_color;
-}
-
-button.destructive-action:hover {
-  background: shade(@theme_error_color, 1.1);
-}
-
-/* Linked button groups */
-.linked button:not(:first-child) {
-  border-left: 1px solid @borders;
-  border-radius: 0;
-}
-
-.linked button:first-child {
-  border-top-right-radius: 0;
-  border-bottom-right-radius: 0;
-}
-
-.linked button:last-child {
-  border-top-left-radius: 0;
-  border-bottom-left-radius: 0;
-}
-
-.linked button:only-child {
+GtkCenterBox > GtkBox button {
+  padding: 8px 16px;
   border-radius: 6px;
+  font-weight: 500;
 }
 
-/* Entry field improvements */
-entry {
-  padding: 8px 12px;
+button { border-radius: 6px; }
+
+.raw-editor {
   border: 1px solid @borders;
-  border-radius: 6px;
+  border-radius: 8px;
   background: @theme_entry_bg_color;
   color: @theme_entry_fg_color;
-  font-size: 14px;
-  transition: all 0.2s ease;
+  font-family: 'Monospace', monospace;
+  font-size: 13px;
+  line-height: 1.4;
 }
 
-entry:focus {
-  border-color: @theme_selected_bg_color;
-  box-shadow: 0 0 0 2px alpha(@theme_selected_bg_color, 0.3);
+#custom_options_list {
+  background: transparent;
+  margin: 6px 0;
 }
 
-entry.error {
-  border-color: #e01b24;
-  background: alpha(#e01b24, 0.05);
-}
-
-/* Switch improvements */
-switch {
-  background: @theme_bg_color;
-  border-radius: 20px;
-  padding: 2px;
-}
-
-switch slider {
-  background: @theme_fg_color;
-  border-radius: 50%;
-  min-width: 20px;
-  min-height: 20px;
-}
-
-switch:checked {
-  background: @theme_selected_bg_color;
-}
-
-switch:checked slider {
-  background: @theme_selected_fg_color;
-}
-
-/* Notebook improvements */
-notebook {
-  background: @theme_bg_color;
-}
-
-notebook tab {
-  background: @theme_bg_color;
+#custom_options_list > box {
+  background: @theme_entry_bg_color;
   border: 1px solid @borders;
-  border-bottom: none;
-  border-radius: 6px 6px 0 0;
-  padding: 8px 12px;
-  margin-right: 2px;
+  border-radius: 8px;
+  margin: 4px 0;
 }
 
-notebook tab:checked {
-  background: @theme_bg_color;
-  border-bottom: 1px solid @theme_bg_color;
+#custom_options_list > box:hover {
+  background: alpha(@theme_fg_color, 0.06);
 }
 
-notebook tab:hover:not(:checked) {
-  background: alpha(@theme_selected_bg_color, 0.1);
-}
-
-notebook stack {
-  background: @theme_bg_color;
-  border: 1px solid @borders;
-  border-radius: 0 6px 6px 6px;
-  padding: 16px;
-}
-
-/* Toast improvements */
-toast {
-  background: @theme_bg_color;
+.custom-option-key,
+.custom-option-value {
   border: 1px solid @borders;
   border-radius: 6px;
-  box-shadow: 0 4px 12px alpha(@borders, 0.3);
+  padding: 8px 12px;
+  background: @theme_bg_color;
+  font-size: 13px;
 }
 
-/* Status indicators */
-.status-success {
-  color: #26a269;
+.custom-option-key:focus,
+.custom-option-value:focus {
+  border-color: @theme_selected_bg_color;
+  box-shadow: 0 0 0 2px alpha(@theme_selected_bg_color, 0.25);
 }
 
-.status-warning {
-  color: #cd9309;
+.custom-option-key {
+  font-weight: 500;
 }
 
-.status-error {
-  color: #e01b24;
-}
-
-.status-info {
-  color: #3584e4;
-}
-
-/* Error labels */
-.error-label {
-  color: #e01b24;
-  font-size: 12px;
+.custom-option-value {
   font-style: italic;
 }
 
-/* Dimmed labels */
-.dim-label {
-  color: @theme_disabled_fg_color;
-  font-size: 12px;
+#add_custom_button {
+  font-weight: 500;
+  padding: 6px 12px;
 }
 
-/* Accessibility improvements */
-*:focus {
-  outline: 2px solid @theme_selected_bg_color;
-  outline-offset: 2px;
+.raw-editor-group {
+  margin-top: 12px;
 }
 
-/* About window improvements */
-aboutwindow {
-  background: @theme_bg_color;
-}
-
-aboutwindow .title {
-  font-size: 24px;
-  font-weight: 700;
-  color: @theme_fg_color;
-}
-
-aboutwindow .subtitle {
-  font-size: 16px;
-  color: @theme_disabled_fg_color;
-}
-
-aboutwindow .description {
-  font-size: 14px;
-  line-height: 1.5;
-  color: @theme_fg_color;
-}
-
-aboutwindow .developer-name {
-  font-weight: 600;
-  color: @theme_selected_bg_color;
-}
-
-aboutwindow .copyright {
-  font-size: 12px;
-  color: @theme_disabled_fg_color;
-}
-
-aboutwindow .website-link {
-  color: @theme_selected_bg_color;
-  text-decoration: none;
-}
-
-aboutwindow .website-link:hover {
-  text-decoration: underline;
-}
-
-aboutwindow .license-text {
-  font-family: monospace;
-  font-size: 12px;
-  background: alpha(@theme_fg_color, 0.05);
+#raw_text_view {
+  font-family: 'Monospace', monospace;
+  font-size: 13px;
+  line-height: 1.4;
+  background: @theme_entry_bg_color;
+  color: @theme_entry_fg_color;
   border: 1px solid @borders;
   border-radius: 6px;
   padding: 12px;
-  margin: 8px 0;
 }
 
-aboutwindow .debug-info {
-  font-family: monospace;
-  font-size: 11px;
-  background: alpha(@theme_fg_color, 0.03);
-  border: 1px solid @borders;
-  border-radius: 6px;
-  padding: 8px;
-  margin: 8px 0;
-  color: @theme_disabled_fg_color;
+#raw_wrap_switch {
+  margin: 0 4px;
 }
+
+notebook { background: @theme_bg_color; }
+notebook stack { border: 1px solid @borders; border-radius: 6px; }
+
+
+

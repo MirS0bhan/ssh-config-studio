@@ -1,0 +1,136 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $MainWindow: Adw.ApplicationWindow {
+  title: _("SSH Config Studio");
+  default-width: 1200;
+  default-height: 800;
+
+  Adw.ToastOverlay toast_overlay {
+    Adw.ToolbarView main_box {
+      [top]
+      HeaderBar {
+        show-title-buttons: true;
+
+        [title]
+        Label {
+          label: _("SSH Config Studio");
+
+          styles [
+            "title",
+          ]
+        }
+
+        [start]
+        Button search_button {
+          icon-name: "system-search-symbolic";
+          tooltip-text: _("Search (Ctrl+F)");
+
+          styles [
+            "flat",
+          ]
+        }
+
+        [start]
+        Button add_button {
+          icon-name: "list-add-symbolic";
+          tooltip-text: _("Add Host");
+
+          styles [
+            "suggested-action",
+          ]
+        }
+
+        [start]
+        Button duplicate_button {
+          icon-name: "edit-copy-symbolic";
+          tooltip-text: _("Duplicate Host");
+
+          styles [
+            "flat",
+          ]
+        }
+
+        [start]
+        Button delete_button {
+          icon-name: "edit-delete-symbolic";
+          tooltip-text: _("Delete Host");
+
+          styles [
+            "destructive-action",
+          ]
+        }
+
+        [end]
+        MenuButton {
+          icon-name: "open-menu-symbolic";
+          menu-model: main_menu;
+
+          styles [
+            "flat",
+          ]
+        }
+      }
+
+      [top]
+      $SearchBar search_bar {
+        visible: "False";
+      }
+
+      Adw.NavigationSplitView split_view {
+        collapsed: true;
+
+        sidebar: Adw.NavigationPage {
+          title: _("SSH Hosts");
+
+          child: Adw.NavigationView sidebar_nav {
+            Adw.NavigationPage {
+              title: _("SSH Hosts");
+
+              child: $HostList host_list {};
+            }
+          };
+        };
+
+        content: Adw.NavigationPage {
+          title: _("Host Editor");
+
+          child: Adw.NavigationView content_nav {
+            Adw.NavigationPage {
+              title: _("Host Editor");
+
+              child: $HostEditor host_editor {};
+            }
+          };
+        };
+      }
+    }
+  }
+}
+
+menu main_menu {
+  section {
+
+    item {
+      label: _("Open Config");
+      action: "app.open-config";
+    }
+
+    item {
+      label: _("Reload");
+      action: "app.reload";
+    }
+
+    item {
+      label: _("Preferences");
+      action: "app.preferences";
+    }
+  }
+
+  section {
+    item {
+      label: _("About");
+      action: "app.about";
+    }
+  }
+}

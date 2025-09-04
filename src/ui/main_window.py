@@ -16,14 +16,16 @@ class MainWindow(Adw.ApplicationWindow):
     
     __gtype_name__ = "MainWindow"
 
-    # Template children
     main_box = Gtk.Template.Child()
     toast_overlay = Gtk.Template.Child()
     search_button = Gtk.Template.Child()
+    add_button = Gtk.Template.Child()
+    duplicate_button = Gtk.Template.Child()
+    delete_button = Gtk.Template.Child()
     search_bar = Gtk.Template.Child()
+    split_view = Gtk.Template.Child()
     host_list = Gtk.Template.Child()
     host_editor = Gtk.Template.Child()
-    save_button = Gtk.Template.Child()
 
     def __init__(self, app):
         super().__init__(
@@ -33,6 +35,7 @@ class MainWindow(Adw.ApplicationWindow):
         self.app = app
         self.parser = app.parser
         self.is_dirty = False
+        self._raw_wrap_lines = False  # Initialize wrap mode preference
         
         self._connect_signals()
         self._load_config()
@@ -64,7 +67,6 @@ class MainWindow(Adw.ApplicationWindow):
         try:
             self.host_editor.set_app(self.app)
         except Exception:
-            # Host editor will operate without app reference
             return
         
         paned = Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL)
@@ -79,16 +81,30 @@ class MainWindow(Adw.ApplicationWindow):
         try:
             self.save_button.connect("clicked", self._on_save_clicked)
         except Exception:
-            pass
+            self.save_button = None
         try:
             self.search_button.connect("clicked", self._on_search_button_clicked)
         except Exception:
             pass
+        try:
+            self.add_button.connect("clicked", self._on_add_clicked)
+        except Exception:
+            pass
+        try:
+            self.duplicate_button.connect("clicked", self._on_duplicate_clicked)
+        except Exception:
+            pass
+        try:
+            self.delete_button.connect("clicked", self._on_delete_clicked)
+        except Exception:
+            pass
+        
         self.host_list.connect("host-selected", self._on_host_selected)
         self.host_list.connect("host-added", self._on_host_added)
         self.host_list.connect("host-deleted", self._on_host_deleted)
         
         self.host_editor.connect("host-changed", self._on_host_changed)
+        self.host_editor.connect("host-save", self._on_host_save)
         self.host_editor.connect("editor-validity-changed", self._on_editor_validity_changed)
         
         self.search_bar.connect("search-changed", self._on_search_changed)
@@ -96,7 +112,6 @@ class MainWindow(Adw.ApplicationWindow):
         self._setup_actions()
     
     def _setup_actions(self):
-        """Set up application actions."""
         actions = Gio.SimpleActionGroup()
         
         open_action = Gio.SimpleAction.new("open-config", None)
@@ -130,8 +145,14 @@ class MainWindow(Adw.ApplicationWindow):
     
     def _on_key_pressed(self, controller, keyval, keycode, state):
         if keyval == Gdk.KEY_Escape and self.search_bar.get_visible():
+            try:
+                if hasattr(self.search_bar, "set_search_mode"):
+                    self.search_bar.set_search_mode(False)
+                else:
+                    self.search_bar.set_visible(False)
+            except Exception:
+                self.search_bar.set_visible(False)
             self.search_bar.clear_search()
-            self.search_bar.set_visible(False)
             self.host_list.filter_hosts("")
             return True
         return False
@@ -156,10 +177,12 @@ class MainWindow(Adw.ApplicationWindow):
             self._show_error(f"Failed to load configuration: {e}")
     
     def _toggle_search(self, force=None):
-        """Show/hide search bar. If force is None, toggle; else set visibility to force."""
         try:
             make_visible = (not self.search_bar.get_visible()) if force is None else bool(force)
-            self.search_bar.set_visible(make_visible)
+            if hasattr(self.search_bar, "set_search_mode"):
+                self.search_bar.set_search_mode(make_visible)
+            else:
+                self.search_bar.set_visible(make_visible)
             if make_visible:
                 self.search_bar.grab_focus()
             else:
@@ -169,8 +192,23 @@ class MainWindow(Adw.ApplicationWindow):
             pass
 
     def _on_search_button_clicked(self, button):
-        """Handle search button click."""
         self._toggle_search()
+
+    def _on_add_clicked(self, button):
+        """Handle add host button click."""
+        self.host_list.add_host()
+
+    def _on_duplicate_clicked(self, button):
+        """Handle duplicate host button click."""
+        self.host_list.duplicate_host()
+
+    def _on_delete_clicked(self, button):
+        """Handle delete host button click."""
+        self.host_list.delete_host()
+
+    def _on_host_save(self, editor, host):
+        """Handle host save signal from editor."""
+        self._on_save_clicked(None)
 
     def _on_search_action(self, action, param):
         """Handle app.search action (keyboard/menu)."""
@@ -216,6 +254,12 @@ class MainWindow(Adw.ApplicationWindow):
         """Handle host selection from the list."""
         self.host_editor.load_host(host)
         self.host_editor.set_visible(True)
+        # Uncollapse split view to show editor alongside the list
+        try:
+            if self.split_view.get_collapsed():
+                self.split_view.set_collapsed(False)
+        except Exception:
+            pass
 
     def _on_host_added(self, host_list, host):
         if self.parser:
@@ -250,18 +294,25 @@ class MainWindow(Adw.ApplicationWindow):
                 self.host_editor.set_visible(False)
                 self.save_button.set_sensitive(False)
                 self.is_dirty = False
+                # Collapse back to list-only view when no hosts remain
+                try:
+                    self.split_view.set_collapsed(True)
+                except Exception:
+                    pass
             else:
                 self.host_list.select_host(self.parser.config.hosts[0])
     
     def _on_host_changed(self, editor, host):
         self.is_dirty = self.parser.config.is_dirty()
-        self.save_button.set_sensitive(self.is_dirty)
+        if self.save_button is not None:
+            self.save_button.set_sensitive(self.is_dirty)
 
     def _on_editor_validity_changed(self, editor, is_valid: bool):
-        if not is_valid:
-            self.save_button.set_sensitive(False)
-        else:
-            self.save_button.set_sensitive(self.is_dirty)
+        if self.save_button is not None:
+            if not is_valid:
+                self.save_button.set_sensitive(False)
+            else:
+                self.save_button.set_sensitive(self.is_dirty)
 
     def _on_search_changed(self, search_bar, query):
         """Handle search query changes."""
@@ -304,43 +355,51 @@ class MainWindow(Adw.ApplicationWindow):
             "auto_backup": bool(getattr(self.parser, "auto_backup_enabled", True)),
             "editor_font_size": getattr(self, "_editor_font_size", 12),
             "prefer_dark_theme": getattr(self, "_prefer_dark_theme", False),
+            "raw_wrap_lines": getattr(self, "_raw_wrap_lines", False),
         }
         dialog.set_preferences(current_prefs)
 
-        def on_response(dlg, response_id):
-            if response_id == Gtk.ResponseType.OK:
-                prefs = dlg.get_preferences()
-                if self.parser:
-                    if prefs.get("config_path"):
-                        self.parser.config_path = Path(prefs["config_path"]) 
-                    self.parser.auto_backup_enabled = bool(prefs.get("auto_backup", True))
-                    backup_dir_val = prefs.get("backup_dir") or None
-                    self.parser.backup_dir = Path(backup_dir_val).expanduser() if backup_dir_val else None
-                font_size = int(prefs.get("editor_font_size") or 12)
-                self._editor_font_size = font_size
-                try:
-                    provider = Gtk.CssProvider()
-                    provider.load_from_data(f".editor-pane textview {{font-size: {font_size}pt;}}".encode())
-                    Gtk.StyleContext.add_provider_for_display(
-                        Gtk.Display.get_default(), provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
-                except Exception:
-                    pass
-                prefer_dark = bool(prefs.get("prefer_dark_theme", False))
-                self._prefer_dark_theme = prefer_dark
-                try:
-                    style_manager = Adw.StyleManager.get_default()
-                    if style_manager is not None:
-                        style_manager.set_color_scheme(
-                            Adw.ColorScheme.PREFER_DARK if prefer_dark else Adw.ColorScheme.DEFAULT
-                        )
-                except Exception:
-                    pass
-                if self.parser:
-                    self._load_config()
-                self._update_status(_("Preferences saved"))
-            dlg.destroy()
+        def on_close_request(dlg):
+            # Save preferences when dialog is closed
+            prefs = dlg.get_preferences()
+            if self.parser:
+                if prefs.get("config_path"):
+                    self.parser.config_path = Path(prefs["config_path"]) 
+                self.parser.auto_backup_enabled = bool(prefs.get("auto_backup", True))
+                backup_dir_val = prefs.get("backup_dir") or None
+                self.parser.backup_dir = Path(backup_dir_val).expanduser() if backup_dir_val else None
+            font_size = int(prefs.get("editor_font_size") or 12)
+            self._editor_font_size = font_size
+            try:
+                provider = Gtk.CssProvider()
+                provider.load_from_data(f".editor-pane textview {{font-size: {font_size}pt;}}".encode())
+                Gtk.StyleContext.add_provider_for_display(
+                    Gtk.Display.get_default(), provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+            except Exception:
+                pass
+            prefer_dark = bool(prefs.get("prefer_dark_theme", False))
+            self._prefer_dark_theme = prefer_dark
+            try:
+                style_manager = Adw.StyleManager.get_default()
+                if style_manager is not None:
+                    style_manager.set_color_scheme(
+                        Adw.ColorScheme.PREFER_DARK if prefer_dark else Adw.ColorScheme.DEFAULT
+                    )
+            except Exception:
+                pass
+            # Handle raw wrap lines preference
+            raw_wrap = bool(prefs.get("raw_wrap_lines", False))
+            self._raw_wrap_lines = raw_wrap
+            try:
+                self.host_editor.set_wrap_mode(raw_wrap)
+            except Exception:
+                pass
+            if self.parser:
+                self._load_config()
+            self._update_status(_("Preferences saved"))
+            return False  # Allow dialog to close
 
-        dialog.connect("response", on_response)
+        dialog.connect("close-request", on_close_request)
         dialog.present()
     
     def _on_about(self, action, param):
@@ -349,7 +408,7 @@ class MainWindow(Adw.ApplicationWindow):
             transient_for=self,
             application_name=_("SSH Config Studio"),
             application_icon="com.sshconfigstudio.app",
-            version="1.0.0",
+            version="1.1.0",
             developer_name=_("Made with ❤️ by Mahyar Darvishi"),
             website="https://github.com/BuddySirJava/ssh-config-studio",
             issue_url="https://github.com/BuddySirJava/ssh-config-studio/issues",

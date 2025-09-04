@@ -1,92 +1,36 @@
+
 import gi
 gi.require_version('Gtk', '4.0')
-from gi.repository import Gtk, Gio, GObject
+from gi.repository import Gtk, Gio, GObject, Adw
 from gettext import gettext as _
 
-class PreferencesDialog(Gtk.Dialog):
-    """Application preferences dialog."""
+@Gtk.Template(resource_path="/com/sshconfigstudio/app/ui/preferences_dialog.ui")
+class PreferencesDialog(Adw.PreferencesWindow):
+    """Application preferences dialog using Adwaita components."""
     
+    __gtype_name__ = "PreferencesDialog"
+
+    config_path_entry = Gtk.Template.Child()
+    config_path_button = Gtk.Template.Child()
+    backup_dir_entry = Gtk.Template.Child()
+    backup_dir_button = Gtk.Template.Child()
+    auto_backup_switch = Gtk.Template.Child()
+    editor_font_spin = Gtk.Template.Child()
+    dark_theme_switch = Gtk.Template.Child()
+    raw_wrap_switch = Gtk.Template.Child()
+
     def __init__(self, parent):
         super().__init__(
             transient_for=parent,
             modal=True,
-            title=_("Preferences"),
-            default_width=400,
-            default_height=200
+            title=_("Preferences")
         )
-        self.set_resizable(False)
-
-        content_area = self.get_content_area()
-        content_area.set_margin_start(12)
-        content_area.set_margin_end(12)
-        content_area.set_margin_top(12)
-        content_area.set_margin_bottom(12)
-
-        grid = Gtk.Grid()
-        grid.set_row_spacing(10)
-        grid.set_column_spacing(10)
-        content_area.append(grid)
-
-        config_path_label = Gtk.Label(label=_("SSH Config Path:"), xalign=0)
-        grid.attach(config_path_label, 0, 0, 1, 1)
-
-        self.config_path_entry = Gtk.Entry()
-        self.config_path_entry.set_placeholder_text("~/.ssh/config")
-        self.config_path_entry.set_hexpand(True)
-        grid.attach(self.config_path_entry, 1, 0, 1, 1)
-
-        self.config_path_button = Gtk.Button()
-        self.config_path_button.set_icon_name("document-open-symbolic")
-        self.config_path_button.set_tooltip_text(_("Choose Config File"))
-        grid.attach(self.config_path_button, 2, 0, 1, 1)
-
-        backup_dir_label = Gtk.Label(label=_("Backup Directory:"), xalign=0)
-        grid.attach(backup_dir_label, 0, 1, 1, 1)
-
-        self.backup_dir_entry = Gtk.Entry()
-        self.backup_dir_entry.set_placeholder_text("~/.ssh")
-        self.backup_dir_entry.set_hexpand(True)
-        grid.attach(self.backup_dir_entry, 1, 1, 1, 1)
-
-        self.backup_dir_button = Gtk.Button()
-        self.backup_dir_button.set_icon_name("folder-open-symbolic")
-        self.backup_dir_button.set_tooltip_text(_("Choose Backup Directory"))
-        grid.attach(self.backup_dir_button, 2, 1, 1, 1)
-
-        auto_backup_label = Gtk.Label(label=_("Enable Auto-Backup:"), xalign=0)
-        grid.attach(auto_backup_label, 0, 2, 1, 1)
-        self.auto_backup_switch = Gtk.Switch()
-        self.auto_backup_switch.set_active(True)
-        self.auto_backup_switch.set_halign(Gtk.Align.START)
-        grid.attach(self.auto_backup_switch, 1, 2, 1, 1)
-
-        editor_font_label = Gtk.Label(label=_("Editor Font Size:"), xalign=0)
-        grid.attach(editor_font_label, 0, 3, 1, 1)
-        adjustment = Gtk.Adjustment.new(12, 9, 24, 1, 2, 0)
-        self.editor_font_spin = Gtk.SpinButton()
-        self.editor_font_spin.set_adjustment(adjustment)
-        grid.attach(self.editor_font_spin, 1, 3, 1, 1)
-
-        theme_label = Gtk.Label(label=_("Prefer Dark Theme:"), xalign=0)
-        grid.attach(theme_label, 0, 4, 1, 1)
-        self.dark_theme_switch = Gtk.Switch()
-        self.dark_theme_switch.set_active(False)
-        self.dark_theme_switch.set_halign(Gtk.Align.START)
-        grid.attach(self.dark_theme_switch, 1, 4, 1, 1)
-
-        self.add_button(_("Cancel"), Gtk.ResponseType.CANCEL)
-        self.add_button(_("Save"), Gtk.ResponseType.OK)
-
+        self.set_default_size(600, 500)
         self._connect_signals()
     
     def _connect_signals(self):
-        self.connect("response", self._on_response)
         self.config_path_button.connect("clicked", self._on_config_path_clicked)
         self.backup_dir_button.connect("clicked", self._on_backup_dir_clicked)
-
-    def _on_response(self, dialog, response_id):
-        if response_id == Gtk.ResponseType.OK:
-            pass
 
     def _on_config_path_clicked(self, button):
         dialog = Gtk.FileChooserDialog(
@@ -129,7 +73,8 @@ class PreferencesDialog(Gtk.Dialog):
             "backup_dir": self.backup_dir_entry.get_text(),
             "auto_backup": self.auto_backup_switch.get_active(),
             "editor_font_size": int(self.editor_font_spin.get_value()),
-            "prefer_dark_theme": self.dark_theme_switch.get_active()
+            "prefer_dark_theme": self.dark_theme_switch.get_active(),
+            "raw_wrap_lines": self.raw_wrap_switch.get_active()
         }
 
     def set_preferences(self, prefs: dict):
@@ -143,3 +88,5 @@ class PreferencesDialog(Gtk.Dialog):
             self.editor_font_spin.set_value(float(prefs["editor_font_size"]))
         if "prefer_dark_theme" in prefs:
             self.dark_theme_switch.set_active(bool(prefs["prefer_dark_theme"]))
+        if "raw_wrap_lines" in prefs:
+            self.raw_wrap_switch.set_active(bool(prefs["raw_wrap_lines"]))

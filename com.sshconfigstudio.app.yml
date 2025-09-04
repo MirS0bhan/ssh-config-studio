@@ -1,6 +1,6 @@
 app-id: com.sshconfigstudio.app
 runtime: org.gnome.Platform
-runtime-version: '46'
+runtime-version: '47'
 sdk: org.gnome.Sdk
 command: ssh-config-studio
 finish-args:
@@ -15,16 +15,23 @@ finish-args:
   # Access to SSH agent inside the sandbox
   - --socket=ssh-auth
 modules:
+  - name: blueprint-compiler
+    buildsystem: meson
+    config-opts:
+      - --prefix=/app
+    sources:
+      - type: git
+        url: https://gitlab.gnome.org/jwestman/blueprint-compiler.git
+        tag: v0.18.0
   - name: ssh-config-studio
     buildsystem: meson
-    config-opts: []
     sources:
       - type: dir
         path: .
-    build-commands:
+    post-install:
       - |
-        printf '#!/usr/bin/env bash\nexec python3 -m ssh_config_studio.main "$@"\n' > ssh-config-studio
-      - install -Dm755 ssh-config-studio /app/bin/ssh-config-studio
+        printf '#!/usr/bin/env bash\nexec python3 -m ssh_config_studio.main "$@"\n' > /app/bin/ssh-config-studio
+      - chmod +x /app/bin/ssh-config-studio
     cleanup:
       - /include
       - /lib/pkgconfig

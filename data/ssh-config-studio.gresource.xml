@@ -1,12 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <gresources>
   <gresource prefix="/com/sshconfigstudio/app">
-    <file preprocess="xml-stripblanks">ui/main_window.ui</file>
-    <file preprocess="xml-stripblanks">ui/host_editor.ui</file>
-    <file preprocess="xml-stripblanks">ui/host_list.ui</file>
-    <file preprocess="xml-stripblanks">ui/search_bar.ui</file>
-    <file preprocess="xml-stripblanks">ui/preferences_dialog.ui</file>
-    <file>media/icon_256.png</file>
-    <file>media/record1.gif</file>
+    <file alias="ui/main_window.ui" preprocess="xml-stripblanks">main_window.ui</file>
+    <file alias="ui/host_editor.ui" preprocess="xml-stripblanks">host_editor.ui</file>
+    <file alias="ui/host_list.ui" preprocess="xml-stripblanks">host_list.ui</file>
+    <file alias="ui/search_bar.ui" preprocess="xml-stripblanks">search_bar.ui</file>
+    <file alias="ui/preferences_dialog.ui" preprocess="xml-stripblanks">preferences_dialog.ui</file>
+    <file>ssh-config-studio.css</file>
+    <file alias="media/icon_256.png">icon_256.png</file>
   </gresource>
 </gresources>
+
+

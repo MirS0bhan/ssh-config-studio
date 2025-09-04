@@ -1,10 +1,9 @@
 import gi
 gi.require_version('Gtk', '4.0')
-from gi.repository import Gtk, GObject, Gio, Gdk, GLib
+from gi.repository import Gtk, GObject, Gio, Gdk, GLib, Adw
 import subprocess
 import threading
 
-# Support both installed package and local source tree
 try:
 	from ssh_config_studio.ssh_config_parser import SSHHost, SSHOption
 except ImportError:
@@ -19,8 +18,7 @@ class HostEditor(Gtk.Box):
 
     __gtype_name__ = "HostEditor"
 
-    # Template children
-    notebook = Gtk.Template.Child()
+    viewstack = Gtk.Template.Child()
     patterns_entry = Gtk.Template.Child()
     patterns_error_label = Gtk.Template.Child()
     hostname_entry = Gtk.Template.Child()
@@ -37,14 +35,15 @@ class HostEditor(Gtk.Box):
     custom_options_list = Gtk.Template.Child()
     add_custom_button = Gtk.Template.Child()
     raw_text_view = Gtk.Template.Child()
-    copy_ssh_button = Gtk.Template.Child()
-    test_connection_button = Gtk.Template.Child()
+    copy_row = Gtk.Template.Child()
+    test_row = Gtk.Template.Child()
+    save_button = Gtk.Template.Child()
     revert_button = Gtk.Template.Child()
 
-    # Custom signals
     __gsignals__ = {
         'host-changed': (GObject.SignalFlags.RUN_LAST, None, (object,)),
-        'editor-validity-changed': (GObject.SignalFlags.RUN_LAST, None, (bool,))
+        'editor-validity-changed': (GObject.SignalFlags.RUN_LAST, None, (bool,)),
+        'host-save': (GObject.SignalFlags.RUN_LAST, None, (object,))
     }
 
     def __init__(self):
@@ -54,7 +53,7 @@ class HostEditor(Gtk.Box):
         self.current_host = None
         self.is_loading = False
         self._programmatic_raw_update = False
-        # CSS for inline validation errors
+        self._editor_valid = True
         try:
             css = Gtk.CssProvider()
             css.load_from_data(b"""
@@ -67,237 +66,27 @@ class HostEditor(Gtk.Box):
         except Exception:
             pass
         self._connect_signals()
-        try:
-            self.buffer = self.raw_text_view.get_buffer()
-            self.tag_add = self.buffer.create_tag("added", background="#aaffaa", foreground="black")
-            self.tag_removed = self.buffer.create_tag("removed", background="#ffaaaa", foreground="black")
-            self.tag_changed = self.buffer.create_tag("changed", background="#ffffaa", foreground="black")
-        except Exception:
-            self.buffer = None
-            self.tag_add = None
-            self.tag_removed = None
-            self.tag_changed = None
+
+        # Initialize diff highlighting tags
+        self.buffer = self.raw_text_view.get_buffer()
+        self.tag_add = self.buffer.create_tag("added", background="#aaffaa", foreground="black")
+        self.tag_removed = self.buffer.create_tag("removed", background="#ffaaaa", foreground="black")
+        self.tag_changed = self.buffer.create_tag("changed", background="#ffffaa", foreground="black")
+
+        # Set initial button state
+        self.save_button.set_sensitive(False)
+        self.revert_button.set_sensitive(False)
 
     def set_app(self, app):
         self.app = app
 
-    def _setup_ui(self):
-        title_label = Gtk.Label(label="Host Configuration")
-        title_label.add_css_class("title")
-        self.append(title_label)
-        
-        self.notebook = Gtk.Notebook()
-        self.append(self.notebook)
-        
-        self._setup_basic_tab()
-        
-        self._setup_networking_tab()
-        
-        self._setup_advanced_tab()
-        
-        self._setup_raw_tab()
-        
-        self._setup_quick_actions()
-    
-    def _setup_basic_tab(self):
-        basic_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        basic_box.set_margin_start(12)
-        basic_box.set_margin_end(12)
-        basic_box.set_margin_top(12)
-        basic_box.set_margin_bottom(12)
-        
-        patterns_label = Gtk.Label(label="Host Patterns:")
-        patterns_label.set_xalign(0)
-        basic_box.append(patterns_label)
-        
-        self.patterns_entry = Gtk.Entry()
-        self.patterns_entry.set_placeholder_text("host1 host2 host3")
-        self.patterns_entry.set_tooltip_text("Space-separated host patterns")
-        basic_box.append(self.patterns_entry)
-        self.patterns_error_label = Gtk.Label()
-        self.patterns_error_label.set_xalign(0)
-        self.patterns_error_label.add_css_class("error-label")
-        self.patterns_error_label.set_visible(False)
-        basic_box.append(self.patterns_error_label)
-        
-        hostname_label = Gtk.Label(label="HostName:")
-        hostname_label.set_xalign(0)
-        hostname_label.set_margin_top(12)
-        basic_box.append(hostname_label)
-        
-        self.hostname_entry = Gtk.Entry()
-        self.hostname_entry.set_placeholder_text("example.com")
-        basic_box.append(self.hostname_entry)
-        
-        user_label = Gtk.Label(label="User:")
-        user_label.set_xalign(0)
-        user_label.set_margin_top(12)
-        basic_box.append(user_label)
-        
-        self.user_entry = Gtk.Entry()
-        self.user_entry.set_placeholder_text("username")
-        basic_box.append(self.user_entry)
-        
-        port_label = Gtk.Label(label="Port:")
-        port_label.set_xalign(0)
-        port_label.set_margin_top(12)
-        basic_box.append(port_label)
-        
-        self.port_entry = Gtk.Entry()
-        self.port_entry.set_placeholder_text("22")
-        basic_box.append(self.port_entry)
-        self.port_error_label = Gtk.Label()
-        self.port_error_label.set_xalign(0)
-        self.port_error_label.add_css_class("error-label")
-        self.port_error_label.set_visible(False)
-        basic_box.append(self.port_error_label)
-        
-        identity_label = Gtk.Label(label="Identity File:")
-        identity_label.set_xalign(0)
-        identity_label.set_margin_top(12)
-        basic_box.append(identity_label)
-        
-        identity_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        self.identity_entry = Gtk.Entry()
-        self.identity_entry.set_placeholder_text("~/.ssh/id_rsa")
-        identity_box.append(self.identity_entry)
-        
-        identity_button = Gtk.Button()
-        identity_button.set_icon_name("document-open-symbolic")
-        identity_button.set_tooltip_text("Choose Identity File")
-        identity_button.connect("clicked", self._on_identity_file_clicked)
-        identity_box.append(identity_button)
-        
-        basic_box.append(identity_box)
-        
-        forward_agent_label = Gtk.Label(label="Forward Agent:")
-        forward_agent_label.set_xalign(0)
-        forward_agent_label.set_margin_top(12)
-        basic_box.append(forward_agent_label)
-        
-        self.forward_agent_switch = Gtk.Switch()
-        self.forward_agent_switch.set_valign(Gtk.Align.CENTER)
-        self.forward_agent_switch.set_halign(Gtk.Align.START)
-        self.forward_agent_switch.set_hexpand(False)
-        basic_box.append(self.forward_agent_switch)
-        
-        self.notebook.append_page(basic_box, Gtk.Label(label="Basic"))
-    
-    def _setup_networking_tab(self):
-        networking_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        networking_box.set_margin_start(12)
-        networking_box.set_margin_end(12)
-        networking_box.set_margin_top(12)
-        networking_box.set_margin_bottom(12)
-        
-        proxy_jump_label = Gtk.Label(label="ProxyJump:")
-        proxy_jump_label.set_xalign(0)
-        networking_box.append(proxy_jump_label)
-        
-        self.proxy_jump_entry = Gtk.Entry()
-        self.proxy_jump_entry.set_placeholder_text("user@jump-host")
-        networking_box.append(self.proxy_jump_entry)
-        
-        proxy_cmd_label = Gtk.Label(label="ProxyCommand:")
-        proxy_cmd_label.set_xalign(0)
-        proxy_cmd_label.set_margin_top(12)
-        networking_box.append(proxy_cmd_label)
-        
-        self.proxy_cmd_entry = Gtk.Entry()
-        self.proxy_cmd_entry.set_placeholder_text("ssh -W %h:%p user@jump-host")
-        networking_box.append(self.proxy_cmd_entry)
-        
-        local_forward_label = Gtk.Label(label="Local Forward:")
-        local_forward_label.set_xalign(0)
-        local_forward_label.set_margin_top(12)
-        networking_box.append(local_forward_label)
-        
-        self.local_forward_entry = Gtk.Entry()
-        self.local_forward_entry.set_placeholder_text("8080:localhost:80")
-        networking_box.append(self.local_forward_entry)
-        
-        remote_forward_label = Gtk.Label(label="Remote Forward:")
-        remote_forward_label.set_xalign(0)
-        remote_forward_label.set_margin_top(12)
-        networking_box.append(remote_forward_label)
-        
-        self.remote_forward_entry = Gtk.Entry()
-        self.remote_forward_entry.set_placeholder_text("8080:localhost:80")
-        networking_box.append(self.remote_forward_entry)
-        
-        self.notebook.append_page(networking_box, Gtk.Label(label="Networking"))
-    
-    def _setup_advanced_tab(self):
-        advanced_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        advanced_box.set_margin_start(12)
-        advanced_box.set_margin_end(12)
-        advanced_box.set_margin_top(12)
-        advanced_box.set_margin_bottom(12)
-        
-        custom_label = Gtk.Label(label="Custom Options:")
-        custom_label.set_xalign(0)
-        advanced_box.append(custom_label)
-        
-        self.custom_options_list = Gtk.ListBox()
-        self.custom_options_list.set_selection_mode(Gtk.SelectionMode.NONE)
-        advanced_box.append(self.custom_options_list)
-        
-        add_custom_button = Gtk.Button(label="Add Custom Option")
-        add_custom_button.connect("clicked", self._on_add_custom_option)
-        advanced_box.append(add_custom_button)
-        
-        self.notebook.append_page(advanced_box, Gtk.Label(label="Advanced"))
-    
-    def _setup_raw_tab(self):
-        raw_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        raw_box.set_margin_start(12)
-        raw_box.set_margin_end(12)
-        raw_box.set_margin_top(12)
-        raw_box.set_margin_bottom(12)
-        
-        raw_label = Gtk.Label(label="Raw Configuration:")
-        raw_label.set_xalign(0)
-        raw_box.append(raw_label)
-        
-        self.raw_text_view = Gtk.TextView()
-        self.raw_text_view.set_monospace(True)
-        self.raw_text_view.set_wrap_mode(Gtk.WrapMode.NONE)
-        self.raw_text_view.set_editable(True)
-        self.raw_text_view.set_hexpand(True)
-        self.raw_text_view.set_vexpand(True)
+    def _show_message(self, message: str):
+        """Show a message using toast if app is available, otherwise print to console."""
+        if self.app and hasattr(self.app, '_show_toast'):
+            self.app._show_toast(message)
+        else:
+            print(f"SSH Config Studio: {message}")
 
-        scrolled_window = Gtk.ScrolledWindow()
-        scrolled_window.set_child(self.raw_text_view)
-        scrolled_window.set_hexpand(True)
-        scrolled_window.set_vexpand(True)
-        raw_box.append(scrolled_window)
-        
-        self.notebook.append_page(raw_box, Gtk.Label(label="Raw/Diff"))
-
-    def _setup_quick_actions(self):
-        actions_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        actions_box.add_css_class("linked")
-        actions_box.set_margin_start(12)
-        actions_box.set_margin_end(12)
-        actions_box.set_margin_top(12)
-        actions_box.set_margin_bottom(12)
-        
-        copy_ssh_button = Gtk.Button(label="Copy SSH Command")
-        copy_ssh_button.connect("clicked", self._on_copy_ssh_command)
-        actions_box.append(copy_ssh_button)
-        
-        test_connection_button = Gtk.Button(label="Test Connection")
-        test_connection_button.connect("clicked", self._on_test_connection)
-        actions_box.append(test_connection_button)
-
-        self.revert_button = Gtk.Button(label="Revert")
-        self.revert_button.add_css_class("destructive-action")
-        self.revert_button.connect("clicked", self._on_revert_clicked)
-        self.revert_button.set_sensitive(False) # Initially insensitive
-        actions_box.append(self.revert_button)
-        
-        self.append(actions_box)
-    
     def _connect_signals(self):
         self.patterns_entry.connect("changed", self._on_field_changed)
         self.hostname_entry.connect("changed", self._on_field_changed)
@@ -312,12 +101,17 @@ class HostEditor(Gtk.Box):
         self.remote_forward_entry.connect("changed", self._on_field_changed)
         
         self._raw_changed_handler_id = self.raw_text_view.get_buffer().connect("changed", self._on_raw_text_changed)
+        
+        # Connect buttons
+        self._connect_buttons()
 
-        # Connect buttons (explicitly, as they are not tied to field changes directly)
+    def _connect_buttons(self):
         self.identity_button.connect("clicked", self._on_identity_file_clicked)
         self.add_custom_button.connect("clicked", self._on_add_custom_option)
-        self.copy_ssh_button.connect("clicked", self._on_copy_ssh_command)
-        self.test_connection_button.connect("clicked", self._on_test_connection)
+        # Connect action rows
+        self.copy_row.connect("activated", lambda r: self._on_copy_ssh_command(None))
+        self.test_row.connect("activated", lambda r: self._on_test_connection(None))
+        self.save_button.connect("clicked", self._on_save_clicked)
         self.revert_button.connect("clicked", self._on_revert_clicked)
     
     def load_host(self, host: SSHHost):
@@ -392,28 +186,59 @@ class HostEditor(Gtk.Box):
     
     def _add_custom_option_row(self, key: str = "", value: str = ""):
         """Adds a new row for a custom option to the list."""
-        row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        row.set_margin_top(6)
-        row.set_margin_bottom(6)
+        # Create a container box for the custom option
+        container_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        container_box.set_margin_start(12)
+        container_box.set_margin_end(12)
+        container_box.set_margin_top(6)
+        container_box.set_margin_bottom(6)
+        
+        # Create the main action row
+        action_row = Adw.ActionRow()
+        action_row.set_title("Custom Option")
+        action_row.set_activatable(False)
+        
+        # Create entry box for key and value
+        entry_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        entry_box.set_spacing(8)
+        entry_box.set_hexpand(True)
         
         key_entry = Gtk.Entry()
         key_entry.set_text(key)
-        key_entry.set_placeholder_text("Option")
-        key_entry.set_size_request(120, -1)
-        row.append(key_entry)
+        key_entry.set_placeholder_text("Option name")
+        key_entry.set_size_request(140, -1)
+        key_entry.add_css_class("custom-option-key")
+        entry_box.append(key_entry)
         
         value_entry = Gtk.Entry()
         value_entry.set_text(value)
-        value_entry.set_placeholder_text("Value")
+        value_entry.set_placeholder_text("Option value")
         value_entry.set_hexpand(True)
-        row.append(value_entry)
+        value_entry.add_css_class("custom-option-value")
+        entry_box.append(value_entry)
         
+        # Add entry box to action row
+        action_row.add_suffix(entry_box)
+        
+        # Create remove button
         remove_button = Gtk.Button()
-        remove_button.set_icon_name("list-remove-symbolic")
-        remove_button.connect("clicked", self._on_remove_custom_option, row)
-        row.append(remove_button)
+        remove_button.set_icon_name("edit-delete-symbolic")
+        remove_button.add_css_class("flat")
+        remove_button.add_css_class("destructive-action")
+        remove_button.set_tooltip_text("Remove this custom option")
+        remove_button.connect("clicked", self._on_remove_custom_option, container_box)
         
-        self.custom_options_list.append(row)
+        # Add remove button to action row
+        action_row.add_suffix(remove_button)
+        
+        # Add action row to container
+        container_box.append(action_row)
+        
+        # Store references for later access
+        container_box.key_entry = key_entry
+        container_box.value_entry = value_entry
+        
+        self.custom_options_list.append(container_box)
         
         key_entry.connect("changed", self._on_custom_option_changed)
         value_entry.connect("changed", self._on_custom_option_changed)
@@ -423,7 +248,7 @@ class HostEditor(Gtk.Box):
         if self.is_loading or not self.current_host:
             return
         
-        self.revert_button.set_sensitive(self.is_host_dirty())
+        self._update_button_sensitivity()
 
         self._validate_and_update_host()
     
@@ -432,7 +257,7 @@ class HostEditor(Gtk.Box):
         if self.is_loading or not self.current_host:
             return
 
-        self.revert_button.set_sensitive(self.is_host_dirty())
+        self._update_button_sensitivity()
 
         self._validate_and_update_host()
 
@@ -524,6 +349,7 @@ class HostEditor(Gtk.Box):
         # Only parse and validate if the change was user-initiated, not programmatic
         if not self._programmatic_raw_update:
             self._parse_and_validate_raw_text(current_lines)
+            self._update_button_sensitivity()
 
     def _parse_and_validate_raw_text(self, current_lines: list[str]):
         """Parses raw lines and updates current_host and UI fields if valid."""
@@ -534,7 +360,7 @@ class HostEditor(Gtk.Box):
             self.current_host.raw_lines = current_lines
             self.emit("host-changed", self.current_host)
             self._sync_fields_from_host()
-            self.revert_button.set_sensitive(self.is_host_dirty())
+            self._update_button_sensitivity()
         except ValueError as e:
             self.app._show_error(f"Invalid raw host configuration: {e}")
         except Exception as e:
@@ -582,24 +408,18 @@ class HostEditor(Gtk.Box):
         # Remove all existing custom options from the host object first
         self.current_host.options = [opt for opt in self.current_host.options if opt.key in common_options]
         
-        for row_widget in self.custom_options_list:
-            # The actual content of the ListBoxRow is our Gtk.Box
-            row_content_box = row_widget.get_child()
-            if row_content_box and isinstance(row_content_box, Gtk.Box):
-                key_entry = row_content_box.get_first_child()
-                if not key_entry: continue
-                value_entry = key_entry.get_next_sibling()
-                if not value_entry: continue
-
-                # Add explicit type checking for robustness and debugging
-                if not isinstance(key_entry, Gtk.Entry) or not isinstance(value_entry, Gtk.Entry):
-                    continue # Skip this row if types are unexpected
-
-                key = key_entry.get_text().strip()
-                value = value_entry.get_text().strip()
-                    
-                if key and value:
-                    self.current_host.set_option(key, value)
+        for container_box in self.custom_options_list:
+            # Access the stored entry references
+            if hasattr(container_box, 'key_entry') and hasattr(container_box, 'value_entry'):
+                key_entry = container_box.key_entry
+                value_entry = container_box.value_entry
+                
+                if key_entry and value_entry:
+                    key = key_entry.get_text().strip()
+                    value = value_entry.get_text().strip()
+                        
+                    if key and value:
+                        self.current_host.set_option(key, value)
     
     def _on_identity_file_clicked(self, button):
         dialog = Gtk.FileChooserDialog(
@@ -643,32 +463,107 @@ class HostEditor(Gtk.Box):
     def _on_copy_ssh_command(self, button):
         """Copy the generated SSH command to the clipboard and show a toast."""
         if not self.current_host:
+            self._show_message(_("No host selected"))
             return
         
-        command_parts = ["ssh"]
-        
-        if self.user_entry.get_text().strip():
-            command_parts.append(f"-l {self.user_entry.get_text().strip()}")
-        
-        if self.port_entry.get_text().strip():
-            command_parts.append(f"-p {self.port_entry.get_text().strip()}")
-        
-        if self.identity_entry.get_text().strip():
-            command_parts.append(f"-i {self.identity_entry.get_text().strip()}")
-        
-        if self.current_host.patterns:
-            command_parts.append(self.current_host.patterns[0])
-        
-        command = " ".join(command_parts)
-        
-        clipboard = Gdk.Display.get_default().get_clipboard()
-        provider = Gdk.ContentProvider.new_for_bytes(
-            "text/plain;charset=utf-8",
-            GLib.Bytes.new(command.encode("utf-8"))
-        )
-        clipboard.set(provider)
-        
-        self.app._show_toast(_(f"SSH command copied: {command}"))
+        try:
+            command_parts = ["ssh"]
+            
+            # Add user if specified
+            user = self.user_entry.get_text().strip()
+            if user:
+                command_parts.append(f"-l {user}")
+            
+            # Add port if specified
+            port = self.port_entry.get_text().strip()
+            if port:
+                command_parts.append(f"-p {port}")
+            
+            # Add identity file if specified
+            identity = self.identity_entry.get_text().strip()
+            if identity:
+                command_parts.append(f"-i {identity}")
+            
+            # Add proxy jump if specified
+            proxy_jump = self.proxy_jump_entry.get_text().strip()
+            if proxy_jump:
+                command_parts.append(f"-J {proxy_jump}")
+            
+            # Add hostname or first pattern
+            hostname = self.hostname_entry.get_text().strip()
+            if hostname:
+                command_parts.append(hostname)
+            elif self.current_host.patterns:
+                command_parts.append(self.current_host.patterns[0])
+            else:
+                self._show_message(_("No hostname or pattern available"))
+                return
+            
+            command = " ".join(command_parts)
+            
+            # Copy to clipboard using a more reliable method
+            try:
+                display = Gdk.Display.get_default()
+                if not display:
+                    self._show_message(_("Failed to access display"))
+                    return
+                
+                # Get the primary clipboard (works better across DEs)
+                clipboard = display.get_clipboard()
+                
+                # Create content provider with proper MIME type
+                content_provider = Gdk.ContentProvider.new_for_bytes(
+                    "text/plain",
+                    GLib.Bytes.new(command.encode("utf-8"))
+                )
+                
+                # Set the content
+                clipboard.set_content(content_provider)
+                
+                # Also try to set it to the primary selection for better compatibility
+                primary = display.get_primary_clipboard()
+                if primary:
+                    primary.set_content(content_provider)
+                    
+            except Exception as e:
+                # Fallback: try using subprocess to copy to clipboard
+                try:
+                    import subprocess
+                    result = subprocess.run(['xclip', '-selection', 'clipboard'], 
+                                         input=command, text=True, capture_output=True)
+                    if result.returncode == 0:
+                        self._show_message(_(f"SSH command copied: {command}"))
+                        return
+                except Exception:
+                    pass
+                
+                # Another fallback: try xsel
+                try:
+                    import subprocess
+                    result = subprocess.run(['xsel', '--clipboard', '--input'], 
+                                         input=command, text=True, capture_output=True)
+                    if result.returncode == 0:
+                        self._show_message(_(f"SSH command copied: {command}"))
+                        return
+                except Exception:
+                    pass
+                
+                raise e
+            
+            self._show_message(_(f"SSH command copied: {command}"))
+            
+        except Exception as e:
+            self._show_message(_(f"Failed to copy command: {str(e)}"))
+
+    def set_wrap_mode(self, wrap: bool):
+        """Set the wrap mode for the raw text view based on preferences."""
+        try:
+            if wrap:
+                self.raw_text_view.set_wrap_mode(Gtk.WrapMode.WORD_CHAR)
+            else:
+                self.raw_text_view.set_wrap_mode(Gtk.WrapMode.NONE)
+        except Exception:
+            pass
 
     def is_host_dirty(self) -> bool:
         """Checks if the current host has unsaved changes compared to its original loaded state."""
@@ -713,10 +608,9 @@ class HostEditor(Gtk.Box):
                 errors['port'] = _("Port must be numeric.")
 
         # Mark invalid custom option keys with red border and tooltip
-        for row_widget in self.custom_options_list:
-            row_content_box = row_widget.get_child()
-            if row_content_box and isinstance(row_content_box, Gtk.Box):
-                key_entry = row_content_box.get_first_child()
+        for container_box in self.custom_options_list:
+            if hasattr(container_box, 'key_entry'):
+                key_entry = container_box.key_entry
                 if key_entry and isinstance(key_entry, Gtk.Entry):
                     key = key_entry.get_text().strip()
                     key_entry.remove_css_class("entry-error")
@@ -750,24 +644,33 @@ class HostEditor(Gtk.Box):
         if hasattr(self, 'port_entry'):
             self.port_entry.remove_css_class("entry-error")
         # Clear custom options error styling
-        for row_widget in self.custom_options_list:
-            row_content_box = row_widget.get_child()
-            if row_content_box and isinstance(row_content_box, Gtk.Box):
-                key_entry = row_content_box.get_first_child()
+        for container_box in self.custom_options_list:
+            if hasattr(container_box, 'key_entry'):
+                key_entry = container_box.key_entry
                 if key_entry and isinstance(key_entry, Gtk.Entry):
                     key_entry.remove_css_class("entry-error")
 
     def _validate_and_update_host(self):
         field_errors = self._collect_field_errors()
         if field_errors:
+            self._editor_valid = False
             self.emit("editor-validity-changed", False)
+            self._update_button_sensitivity()
             return
         else:
+            self._editor_valid = True
             self.emit("editor-validity-changed", True)
 
         self._update_host_from_fields()
         self.emit("host-changed", self.current_host)
         GLib.idle_add(lambda: (self._update_raw_text_from_host(), False)[1])
+        self._update_button_sensitivity()
+
+    def _on_save_clicked(self, button):
+        """Handle save button click."""
+        if self.current_host:
+            # Emit signal to main window to handle saving
+            self.emit("host-save", self.current_host)
 
     def _on_revert_clicked(self, button):
         """Reverts the current host's changes to its last loaded state by reloading the configuration."""
@@ -798,7 +701,18 @@ class HostEditor(Gtk.Box):
             self.buffer.remove_all_tags(self.buffer.get_start_iter(), self.buffer.get_end_iter())
         self.emit("host-changed", self.current_host)
         self.revert_button.set_sensitive(False)
-        self.app._show_toast(_(f"Reverted changes for {self.current_host.patterns[0]}"))
+        if hasattr(self, 'save_button'):
+            self.save_button.set_sensitive(False)
+        self._show_message(_(f"Reverted changes for {self.current_host.patterns[0]}"))
+
+    def _update_button_sensitivity(self):
+        """Updates the sensitivity of save and revert buttons based on dirty state and validity."""
+        is_dirty = self.is_host_dirty()
+        field_errors = self._collect_field_errors() # This also applies error styling
+        is_valid = not bool(field_errors)
+        self.save_button.set_sensitive(is_dirty and is_valid)
+        self.revert_button.set_sensitive(is_dirty)
+
 
     def _on_test_connection(self, button):
         if not self.current_host:
