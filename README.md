@@ -83,8 +83,7 @@ No extra Python packages are required beyond the system-provided PyGObject.
 If you prefer Flatpak, a manifest is provided.
 
 ```bash
-flatpak install -y flathub org.gnome.Platform//46 org.gnome.Sdk//46
-flatpak-builder --user --install --force-clean build-dir com.sshconfigstudio.app.yml
+flatpak-builder --user --force-clean --install-deps-from=flathub build-dir com.sshconfigstudio.app.yml --install
 
 # Run
 flatpak run com.sshconfigstudio.app
@@ -108,6 +107,10 @@ flatpak run com.sshconfigstudio.app
 - `meson.build`, `data/meson.build`, `src/meson.build`: Build and install rules.
 - `com.sshconfigstudio.app.yml`: Flatpak manifest.
 - `po/`: Translations.
+
+### Known issues
+- Some padding issues
+- When editng config using Raw/Diff, custom options added manualy wont appear on Advanced page
 
 ### Support
 
