@@ -6,6 +6,7 @@ python_sources = [
   'ui/main_window.py',
   'ui/preferences_dialog.py',
   'ui/search_bar.py',
+  'ui/test_connection_dialog.py',
 ]
 
 python_installation.install_sources(
@@ -14,7 +15,7 @@ python_installation.install_sources(
 )
 
 python_installation.install_sources(
-  ['ui/host_editor.py', 'ui/host_list.py', 'ui/main_window.py', 'ui/preferences_dialog.py', 'ui/search_bar.py', 'ui/__init__.py'],
+  ['ui/host_editor.py', 'ui/host_list.py', 'ui/main_window.py', 'ui/preferences_dialog.py', 'ui/search_bar.py', 'ui/test_connection_dialog.py', 'ui/__init__.py'],
   subdir: 'ssh_config_studio/ui'
 )
 

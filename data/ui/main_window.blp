@@ -21,14 +21,15 @@ template $MainWindow: Adw.ApplicationWindow {
           ]
         }
         [start]
-        Button search_button {
-          icon-name: "system-search-symbolic";
-          tooltip-text: _("Search (Ctrl+F)");
+        Button toggle_sidebar_button {
+          icon-name: "sidebar-expand-left-symbolic";
+          tooltip-text: _("Show Host Editor");
 
           styles [
             "flat",
           ]
         }
+
 
         [start]
         Button add_button {

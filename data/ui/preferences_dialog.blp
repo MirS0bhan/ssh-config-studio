@@ -24,66 +24,38 @@ template $PreferencesDialog: Adw.PreferencesWindow {
       title: _("Configuration");
       description: _("SSH configuration file and backup settings");
 
-      Adw.ActionRow {
+      Adw.EntryRow config_path_entry {
         title: _("SSH Config Path");
-        subtitle: _("Path to your SSH configuration file");
 
         [suffix]
-        Box {
-          orientation: horizontal;
-          spacing: 8;
+        Button config_path_button {
+          icon-name: "folder-open-symbolic";
+          tooltip-text: _("Choose Config File");
 
-          Entry config_path_entry {
-            placeholder-text: _("~/.ssh/config");
-            width-request: 200;
-          }
-
-          Button config_path_button {
-            icon-name: "document-open-symbolic";
-            tooltip-text: _("Choose Config File");
-
-            styles [
-              "flat",
-            ]
-          }
+          styles [
+            "flat",
+          ]
         }
       }
 
-      Adw.ActionRow {
+      Adw.EntryRow backup_dir_entry {
         title: _("Backup Directory");
-        subtitle: _("Directory where backups are stored");
 
         [suffix]
-        Box {
-          orientation: horizontal;
-          spacing: 8;
+        Button backup_dir_button {
+          icon-name: "folder-open-symbolic";
+          tooltip-text: _("Choose Backup Directory");
 
-          Entry backup_dir_entry {
-            placeholder-text: _("~/.ssh");
-            width-request: 200;
-          }
-
-          Button backup_dir_button {
-            icon-name: "folder-open-symbolic";
-            tooltip-text: _("Choose Backup Directory");
-
-            styles [
-              "flat",
-            ]
-          }
+          styles [
+            "flat",
+          ]
         }
       }
 
-      Adw.ActionRow {
+      Adw.SwitchRow auto_backup_switch {
         title: _("Enable Auto-Backup");
         subtitle: _("Automatically create backups before saving changes");
-        activatable-widget: auto_backup_switch;
-
-        [suffix]
-        Switch auto_backup_switch {
-          valign: center;
-          active: true;
-        }
+        active: true;
       }
     }
 
@@ -91,27 +63,16 @@ template $PreferencesDialog: Adw.PreferencesWindow {
       title: _("Editor");
       description: _("Text editor appearance and behavior");
 
-      Adw.ActionRow {
+      Adw.SpinRow editor_font_spin {
         title: _("Font Size");
-        subtitle: _("Size of text in the editor");
-
-        [suffix]
-        SpinButton editor_font_spin {
-          adjustment: editor_font_adjustment;
-          width-request: 80;
-        }
+        adjustment: editor_font_adjustment;
+        digits: 0;
       }
 
-      Adw.ActionRow {
+      Adw.SwitchRow raw_wrap_switch {
         title: _("Wrap Long Lines in Raw Editor");
         subtitle: _("Wrap long lines in the raw configuration editor");
-        activatable-widget: raw_wrap_switch;
-
-        [suffix]
-        Switch raw_wrap_switch {
-          valign: center;
-          active: false;
-        }
+        active: false;
       }
     }
 
@@ -119,16 +80,10 @@ template $PreferencesDialog: Adw.PreferencesWindow {
       title: _("Appearance");
       description: _("Visual appearance and theme settings");
 
-      Adw.ActionRow {
+      Adw.SwitchRow dark_theme_switch {
         title: _("Prefer Dark Theme");
         subtitle: _("Use dark theme when available");
-        activatable-widget: dark_theme_switch;
-
-        [suffix]
-        Switch dark_theme_switch {
-          valign: center;
-          active: false;
-        }
+        active: false;
       }
     }
   }

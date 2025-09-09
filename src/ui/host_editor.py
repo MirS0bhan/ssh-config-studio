@@ -6,8 +6,10 @@ import threading
 
 try:
 	from ssh_config_studio.ssh_config_parser import SSHHost, SSHOption
+	from ssh_config_studio.ui.test_connection_dialog import TestConnectionDialog
 except ImportError:
 	from ssh_config_parser import SSHHost, SSHOption
+	from ui.test_connection_dialog import TestConnectionDialog
 import difflib
 import copy
 from gettext import gettext as _
@@ -213,7 +215,10 @@ class HostEditor(Gtk.Box):
         action_row.add_suffix(entry_box)
 
         remove_button = Gtk.Button()
-        remove_button.set_icon_name("edit-delete-symbolic")
+        try:
+            remove_button.set_icon_name("edit-delete-symbolic")
+        except Exception:
+            remove_button.set_label("×")
         remove_button.add_css_class("flat")
         remove_button.add_css_class("destructive-action")
         remove_button.set_tooltip_text("Remove this custom option")
@@ -266,7 +271,6 @@ class HostEditor(Gtk.Box):
 
         self.is_loading = False
 
-        # Next change is programmatic; don't resync form fields
         self._programmatic_raw_update = True
         self._on_raw_text_changed(self.raw_text_view.get_buffer())
         self._programmatic_raw_update = False
@@ -275,14 +279,12 @@ class HostEditor(Gtk.Box):
         """Generates raw lines for the current host based on its structured data."""
         lines = []
         if self.current_host:
-            # Start with the Host line
             if self.current_host.patterns:
                 lines.append(f"Host {' '.join(self.current_host.patterns)}")
 
             for opt in self.current_host.options:
                 lines.append(str(opt))
             
-            # Ensure there's a blank line at the end if there were options, for readability
             if self.current_host.options and lines[-1].strip() != "":
                 lines.append("")
 
@@ -333,7 +335,6 @@ class HostEditor(Gtk.Box):
                     end_iter.forward_to_line_end()
                     self.buffer.apply_tag(self.tag_changed, start_iter, end_iter)
 
-        # Only parse and validate if the change was user-initiated, not programmatic
         if not self._programmatic_raw_update:
             self._parse_and_validate_raw_text(current_lines)
             self._update_button_sensitivity()
@@ -688,49 +689,12 @@ class HostEditor(Gtk.Box):
         if not self.current_host:
             return
         
-        dialog = Gtk.Dialog(
-            title=_("Test Connection"),
-            transient_for=self.get_root(),
-            modal=True
-        )
+        dialog = TestConnectionDialog(parent=self.get_root())
         
-        dialog.add_button(_("Close"), Gtk.ResponseType.CLOSE)
-        dialog.connect("response", lambda d, r: d.destroy())
-        dialog.set_resizable(True)
-        dialog.set_default_size(900, 600)
-        
-        content_area = dialog.get_content_area()
-        content_area.set_margin_start(12)
-        content_area.set_margin_end(12)
-        content_area.set_margin_top(12)
-        content_area.set_margin_bottom(12)
-        
-        status_label = Gtk.Label(label=_("Running SSH command..."))
-        status_label.set_margin_bottom(12)
-        content_area.append(status_label)
-
-        output_text_view = Gtk.TextView()
-        output_text_view.set_editable(False)
-        output_text_view.set_monospace(True)
-        output_text_view.set_wrap_mode(Gtk.WrapMode.WORD_CHAR)
-        output_text_view.set_vexpand(True)
-        output_text_buffer = output_text_view.get_buffer()
-
-        scrolled_window = Gtk.ScrolledWindow()
-        scrolled_window.set_child(output_text_view)
-        scrolled_window.set_vexpand(True)
-        scrolled_window.set_hexpand(True)
-        content_area.append(scrolled_window)
-        
-        # Construct the SSH command, using -G for configuration parsing only
+        # Construct the SSH command
         hostname = self.hostname_entry.get_text().strip()
         if not hostname and self.current_host.patterns:
             hostname = self.current_host.patterns[0] # Fallback to pattern if hostname is empty
-
-        if not hostname:
-            status_label.set_text(_("Error: No hostname or pattern available to test."))
-            dialog.present()
-            return
 
         # Use host SSH when running inside Flatpak
         ssh_invocation = ["ssh"]
@@ -753,7 +717,6 @@ class HostEditor(Gtk.Box):
                    "-o", "ControlPath=none",
                    "-o", "ControlPersist=no"]
 
-        # Include common fields from the editor
         user_val = self.user_entry.get_text().strip()
         port_val = self.port_entry.get_text().strip()
         ident_val = self.identity_entry.get_text().strip()
@@ -770,49 +733,7 @@ class HostEditor(Gtk.Box):
 
         command += [hostname, "exit"]
 
-        # Execute the command on a background thread to avoid blocking the UI
-        def run_test():
-            try:
-                result = subprocess.run(
-                    command,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    text=True,
-                    timeout=20
-                )
-                rc = result.returncode
-                stdout_text = (result.stdout or "").strip()
-                stderr_text = (result.stderr or "").strip()
-
-                def update_ui():
-                    summary = _("Connection OK") if rc == 0 else _(f"Connection failed (exit {rc})")
-                    status_label.set_text(summary)
-                    output = f"Command: {' '.join(command)}\n\n"
-                    if stdout_text:
-                        output += _(f"STDOUT:\n{stdout_text}\n\n")
-                    if stderr_text:
-                        output += _(f"STDERR:\n{stderr_text}\n\n")
-                    output += summary
-                    output_text_buffer.set_text(output)
-                    return False
-
-                GLib.idle_add(update_ui)
-
-            except subprocess.TimeoutExpired:
-                def update_timeout():
-                    status_label.set_text(_("Connection timed out"))
-                    output_text_buffer.set_text(_(f"Command: {' '.join(command)}\n\nTimed out after 20s"))
-                    return False
-                GLib.idle_add(update_timeout)
-            except Exception as e:
-                def update_error():
-                    status_label.set_text(_(f"Error: {e}"))
-                    output_text_buffer.set_text(str(e))
-                    return False
-                GLib.idle_add(update_error)
-
-        threading.Thread(target=run_test, daemon=True).start()
-
+        dialog.start_test(command, hostname)
         dialog.present()
 
     def _sync_fields_from_host(self):

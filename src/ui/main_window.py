@@ -18,7 +18,7 @@ class MainWindow(Adw.ApplicationWindow):
 
     main_box = Gtk.Template.Child()
     toast_overlay = Gtk.Template.Child()
-    search_button = Gtk.Template.Child()
+    toggle_sidebar_button = Gtk.Template.Child()
     add_button = Gtk.Template.Child()
     duplicate_button = Gtk.Template.Child()
     delete_button = Gtk.Template.Child()
@@ -59,6 +59,27 @@ class MainWindow(Adw.ApplicationWindow):
                 self.toast_overlay.add_toast(toast)
         except Exception:
             pass
+
+    def _show_undo_toast(self, message: str, on_undo):
+        """Show a toast with an Undo action; executes on_undo when clicked."""
+        try:
+            toast = Adw.Toast.new(message)
+            if hasattr(toast, 'set_button_label'):
+                try:
+                    toast.set_button_label(_("Undo"))
+                except Exception:
+                    pass
+            if hasattr(toast, 'connect'):
+                try:
+                    toast.connect("button-clicked", lambda t: on_undo())
+                except Exception:
+                    pass
+            if hasattr(self, 'toast_overlay') and self.toast_overlay is not None:
+                self.toast_overlay.add_toast(toast)
+            else:
+                self.show_toast(message)
+        except Exception:
+            self.show_toast(message)
     
     def _setup_split_view(self):
         """Set up the split view between host list and editor."""
@@ -83,7 +104,7 @@ class MainWindow(Adw.ApplicationWindow):
         except Exception:
             self.save_button = None
         try:
-            self.search_button.connect("clicked", self._on_search_button_clicked)
+            self.toggle_sidebar_button.connect("clicked", self._on_toggle_sidebar_clicked)
         except Exception:
             pass
         try:
@@ -130,22 +151,59 @@ class MainWindow(Adw.ApplicationWindow):
         about_action.connect("activate", self._on_about)
         actions.add_action(about_action)
         
-        search_action = Gio.SimpleAction.new("search", None)
-        search_action.connect("activate", self._on_search_action)
-        actions.add_action(search_action)
         
         self.insert_action_group("app", actions)
         
+
+    def _on_toggle_sidebar_clicked(self, button):
+        """Toggle visibility of the host list (sidebar) in the split view."""
         try:
-            app = self.get_application() or self.app
-            if app is not None:
-                app.set_accels_for_action("app.search", ["<primary>f"])
+            collapsed = self.split_view.get_collapsed()
+            self.split_view.set_collapsed(not collapsed)
+            if self.toggle_sidebar_button is not None:
+                if collapsed:
+                    try:
+                        self.toggle_sidebar_button.set_icon_name("sidebar-collapse-right-symbolic")
+                    except Exception:
+                        pass
+                    try:
+                        self.toggle_sidebar_button.set_tooltip_text(_("Hide Host Editor"))
+                    except Exception:
+                        pass
+                else:
+                    try:
+                        self.toggle_sidebar_button.set_icon_name("sidebar-expand-left-symbolic")
+                    except Exception:
+                        pass
+                    try:
+                        self.toggle_sidebar_button.set_tooltip_text(_("Show Host Editor"))
+                    except Exception:
+                        pass
         except Exception:
             pass
     
     def _on_key_pressed(self, controller, keyval, keycode, state):
         if keyval == Gdk.KEY_Escape and self.search_bar.get_visible():
             try:
+                focus_widget = None
+                try:
+                    focus_widget = self.get_focus()
+                except Exception:
+                    focus_widget = None
+
+                def _is_descendant(widget, ancestor):
+                    try:
+                        while widget is not None:
+                            if widget == ancestor:
+                                return True
+                            widget = widget.get_parent()
+                    except Exception:
+                        pass
+                    return False
+
+                if not _is_descendant(focus_widget, self.search_bar):
+                    return False
+
                 if hasattr(self.search_bar, "set_search_mode"):
                     self.search_bar.set_search_mode(False)
                 else:
@@ -191,8 +249,6 @@ class MainWindow(Adw.ApplicationWindow):
         except Exception:
             pass
 
-    def _on_search_button_clicked(self, button):
-        self._toggle_search()
 
     def _on_add_clicked(self, button):
         """Handle add host button click."""
@@ -210,9 +266,6 @@ class MainWindow(Adw.ApplicationWindow):
         """Handle host save signal from editor."""
         self._on_save_clicked(None)
 
-    def _on_search_action(self, action, param):
-        """Handle app.search action (keyboard/menu)."""
-        self._toggle_search()
     
     def _on_window_focus_changed(self, window, param):
         """Hide search bar if window loses focus."""
@@ -221,7 +274,6 @@ class MainWindow(Adw.ApplicationWindow):
             self.search_bar.set_visible(False)
             self.host_list.filter_hosts("")
     
-    # Deprecated: status bar close is no longer used with toasts
     def on_status_bar_close_clicked(self, button):
         pass
     
@@ -255,7 +307,6 @@ class MainWindow(Adw.ApplicationWindow):
         """Handle host selection from the list."""
         self.host_editor.load_host(host)
         self.host_editor.set_visible(True)
-        # Uncollapse split view to show editor alongside the list
         try:
             if self.split_view.get_collapsed():
                 self.split_view.set_collapsed(False)
@@ -278,18 +329,55 @@ class MainWindow(Adw.ApplicationWindow):
             self.is_dirty = True
             if self.save_button is not None:
                 self.save_button.set_sensitive(True)
-            self._update_status(_("Host added"))
+            def undo_add():
+                try:
+                    if host in self.parser.config.hosts:
+                        self.parser.config.remove_host(host)
+                    self.is_dirty = self.parser.config.is_dirty()
+                    if self.save_button is not None:
+                        self.save_button.set_sensitive(self.is_dirty)
+                    self.host_list.load_hosts(self.parser.config.hosts)
+                    try:
+                        if not self.parser.config.hosts:
+                            self.host_editor.set_visible(False)
+                    except Exception:
+                        pass
+                except Exception:
+                    pass
+            self._show_undo_toast(_("Host added"), undo_add)
             self.host_editor.set_visible(True)
             self.host_editor.load_host(host)
     
     def _on_host_deleted(self, host_list, host):
         """Handle host deletion."""
         if self.parser:
+            try:
+                original_index = self.parser.config.hosts.index(host)
+            except ValueError:
+                original_index = None
             self.parser.config.remove_host(host)
             self.is_dirty = True
             if self.save_button is not None:
                 self.save_button.set_sensitive(True)
-            self._update_status(_("Host deleted"))
+            def undo_delete():
+                try:
+                    if original_index is None:
+                        self.parser.config.add_host(host)
+                    else:
+                        self.parser.config.hosts.insert(original_index, host)
+                    self.is_dirty = self.parser.config.is_dirty()
+                    if self.save_button is not None:
+                        self.save_button.set_sensitive(self.is_dirty)
+                    self.host_list.load_hosts(self.parser.config.hosts)
+                    try:
+                        self.host_list.select_host(host)
+                        self.host_editor.set_visible(True)
+                        self.host_editor.load_host(host)
+                    except Exception:
+                        pass
+                except Exception:
+                    pass
+            self._show_undo_toast(_("Host deleted"), undo_delete)
             
             if not self.parser.config.hosts:
                 self.host_editor.current_host = None
@@ -298,7 +386,6 @@ class MainWindow(Adw.ApplicationWindow):
                 if self.save_button is not None:
                     self.save_button.set_sensitive(False)
                 self.is_dirty = False
-                # Collapse back to list-only view when no hosts remain
                 try:
                     self.split_view.set_collapsed(True)
                 except Exception:
@@ -402,18 +489,18 @@ class MainWindow(Adw.ApplicationWindow):
             if self.parser:
                 self._load_config()
             self._update_status(_("Preferences saved"))
-            return False  # Allow dialog to close
+            return False
 
         dialog.connect("close-request", on_close_request)
         dialog.present()
-    
+
     def _on_about(self, action, param):
         """Show the about dialog using Adwaita's AboutWindow."""
         about_window = Adw.AboutWindow(
             transient_for=self,
             application_name=_("SSH Config Studio"),
             application_icon="com.sshconfigstudio.app",
-            version="1.1.0",
+            version="1.1.2",
             developer_name=_("Made with ❤️ by Mahyar Darvishi"),
             website="https://github.com/BuddySirJava/ssh-config-studio",
             issue_url="https://github.com/BuddySirJava/ssh-config-studio/issues",

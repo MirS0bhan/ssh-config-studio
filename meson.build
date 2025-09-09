@@ -1,5 +1,5 @@
 project('ssh-config-studio', 'c',
-  version: '1.1.0',
+  version: '1.1.2',
   license: 'MIT',
   meson_version: '>= 0.60.0',
   default_options: ['warning_level=2',

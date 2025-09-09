@@ -1,4 +1,3 @@
-/* Sidebar background tweaks to avoid dark panel behind the search bar */
 .navigation-sidebar,
 .sidebar,
 .sidebar-pane {
@@ -6,9 +5,18 @@
   box-shadow: none;
 }
 
-/* Ensure top clamp region around the list/search has some breathing room */
 .search-bar entry.pill {
   margin-top: 6px;
   margin-bottom: 6px;
+}
+
+/* Test connection dialog styling */
+textview.code {
+  background-color: rgba(0, 0, 0, 0.2);
+  color: #ffffff;
+  font-family: 'Monospace', monospace;
+  font-size: 11px;
+  padding: 12px;
+  border-radius: 6px;
 }
 

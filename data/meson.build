@@ -6,6 +6,7 @@ blueprint_files = files(
   'ui/main_window.blp',
   'ui/preferences_dialog.blp',
   'ui/search_bar.blp',
+  'ui/test_connection_dialog.blp',
 )
 
 bp_gen = generator(blueprint_compiler,

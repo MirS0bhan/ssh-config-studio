@@ -1,7 +1,7 @@
 import gi
 gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
-from gi.repository import Gtk, GObject, Pango, Adw, Gdk
+from gi.repository import Gtk, GObject, Pango, Adw
 from gettext import gettext as _
 
 try:
@@ -140,8 +140,7 @@ class HostList(Gtk.Box):
             host = model.get_value(tree_iter, 5)
             self.emit("host-selected", host)
 
-    def _on_row_button_press(self, widget, event, menu):
-        return False
+    
 
     def _on_duplicate_host_clicked(self, button, host):
         """Handle duplicate host button click from an ActionRow."""
@@ -260,40 +259,7 @@ class HostList(Gtk.Box):
             secondary = f"{user}@{hostname}" if (hostname or user) else (hostname or patterns)
             action_row.set_subtitle(secondary)
 
-            popover = Gtk.Popover()
-            box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
-            box.set_margin_top(6)
-            box.set_margin_bottom(6)
-            box.set_margin_start(6)
-            box.set_margin_end(6)
-
-            duplicate_btn = Gtk.Button.new_with_label(_("Duplicate Host"))
-            duplicate_btn.connect("clicked", self._on_duplicate_host_clicked, host)
-            box.append(duplicate_btn)
-
-            delete_btn = Gtk.Button.new_with_label(_("Delete Host"))
-            delete_btn.connect("clicked", self._on_delete_host_clicked, host)
-            box.append(delete_btn)
-
-            popover.set_child(box)
-            popover.set_has_arrow(True)
-
-            # Gesture for right-click
-            gesture = Gtk.GestureClick.new()
-            gesture.set_button(Gdk.BUTTON_SECONDARY)
-
-            def on_pressed(gest, n_press, x, y):
-                popover.set_parent(action_row)
-                rect = Gdk.Rectangle()
-                rect.x = int(x)
-                rect.y = int(y)
-                rect.width = 1
-                rect.height = 1
-                popover.set_pointing_to(rect)
-                popover.popup()
-
-            gesture.connect("pressed", on_pressed)
-            action_row.add_controller(gesture)
+            # Right-click context menu removed per request; actions available via header bar
 
             action_row.set_selectable(True)
             action_row.set_activatable(True)
@@ -309,7 +275,6 @@ class HostList(Gtk.Box):
             self.emit("host-selected", host)
 
     def _get_selected_host(self):
-        # Prefer ListBox selection when available
         if hasattr(self, 'list_box') and self.list_box is not None:
             try:
                 row = self.list_box.get_selected_row()
@@ -319,11 +284,9 @@ class HostList(Gtk.Box):
                 host = getattr(row, "_host_ref", None)
                 if host is not None:
                     return host
-        # Fallback to TreeView selection
         if hasattr(self, 'tree_view') and self.tree_view is not None:
             selection = self.tree_view.get_selection()
             model, tree_iter = selection.get_selected()
             if tree_iter:
                 return model.get_value(tree_iter, 5)
-        # Fallback to last selected cache
         return self._selected_host

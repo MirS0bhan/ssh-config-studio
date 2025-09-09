@@ -10,7 +10,9 @@
         "--socket=wayland",
         "--share=network",
         "--filesystem=~/.ssh:rw",
-        "--socket=ssh-auth"
+        "--socket=ssh-auth",
+        "--filesystem=xdg-data/icons:ro",
+        "--talk-name=org.freedesktop.Flatpak"
     ],
     "modules": [
         {

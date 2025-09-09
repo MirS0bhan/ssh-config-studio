@@ -19,7 +19,6 @@ class SearchBar(Gtk.Box):
         super().__init__()
 
         self.search_timeout = None
-        # Ensure visible by default
         self.set_visible(True)
         self._connect_signals()
     def _connect_signals(self):

@@ -16,7 +16,10 @@
 
 ### Preview
 
-![Demo](data/media/record1.gif)
+<div align="center">
+  <img src="data/media/ss1.png" alt="Main Interface" width="45%" style="margin-right: 2%;" />
+  <img src="data/media/ss2.png" alt="Preferences Dialog" width="45%" />
+</div>
 
 ### Features
 
@@ -28,62 +31,19 @@
 - **Safe saves**: Automatic backups (configurable), atomic writes, and include support.
 - **Keyboard- and mouse-friendly**: Smooth GTK 4 UI, dark theme preference.
 
-### Install
 
-SSH Config Studio targets Linux with GTK 4 + Libadwaita. System packages you’ll need (names vary by distro):
 
-- GTK 4 and dependencies
-- Libadwaita 1 (Adwaita for GTK 4)
-- GObject Introspection runtime
-- Python 3.10+
-- PyGObject bindings for Python
+## Install
 
-Examples:
-
-- Debian/Ubuntu: `sudo apt install -y python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 libadwaita-1-0 libgirepository1.0-dev gtk4`  
-- Fedora: `sudo dnf install -y python3-gobject gtk4 libadwaita`  
-- Arch: `sudo pacman -S python-gobject gtk4 libadwaita`
-
-### Build and install (Meson)
-
-```bash
-git clone https://github.com/BuddySirJava/ssh-config-studio.git
-cd ssh-config-studio
-
-# Install to your user prefix (recommended; no sudo)
-meson setup build --prefix="$HOME/.local"
-meson compile -C build
-meson install -C build
-
-# Launch
-python3 -m ssh_config_studio.main
-```
-
-After installing, you can also launch it from your desktop app launcher (a desktop entry is installed).
-
-Alternatively, you can run from source without installing:
-
-```bash
-git clone https://github.com/BuddySirJava/ssh-config-studio.git
-cd ssh-config-studio
-
-# Compile the GResource bundle once (required for UI templates)
-glib-compile-resources \
-  --sourcedir=data \
-  --target=data/ssh-config-studio-resources.gresource \
-  data/ssh-config-studio.gresource.xml
-
-python3 src/main.py
-```
-
-No extra Python packages are required beyond the system-provided PyGObject.
+### Build from source
+You can clone and run from GNOME Builder.
 
 ### Build (Flatpak)
 
-If you prefer Flatpak, a manifest is provided.
+If you prefer Flatpak, use the manifest to build the project.
 
 ```bash
-flatpak-builder --user --force-clean --install-deps-from=flathub build-dir com.sshconfigstudio.app.yml --install
+flatpak-builder --user --force-clean --install-deps-from=flathub build-dir com.sshconfigstudio.app.json --install
 
 # Run
 flatpak run com.sshconfigstudio.app
@@ -99,18 +59,18 @@ flatpak run com.sshconfigstudio.app
 ### Project structure (high-level)
 
 - `src/ssh_config_parser.py`: Parse/validate/generate SSH config safely.
-- `src/ui/`: GTK 4 widgets (`MainWindow`, `HostList`, `HostEditor`, `SearchBar`, `PreferencesDialog`).
-- `data/ui/*.ui`: GTK Builder UI XML templates consumed via GResource.
+- `src/ui/`: Adw widgets (`MainWindow`, `HostList`, `HostEditor`, `SearchBar`, `PreferencesDialog`, `TestConnectionDialog`).
+- `data/ui/*.ui`: GTK Builder UI blueprints.
 - `data/ssh-config-studio.gresource.xml`: GResource manifest.
-- `data/media/`: App icon and demo GIF.
-- `src/main.py`: Application entry point (source-run). After install, entry point is `python3 -m ssh_config_studio.main`.
+- `data/media/`: App icon and screenshots.
+- `src/main.py`: Application entry point.
 - `meson.build`, `data/meson.build`, `src/meson.build`: Build and install rules.
-- `com.sshconfigstudio.app.yml`: Flatpak manifest.
+- `com.sshconfigstudio.app.json`: Flatpak manifest.
 - `po/`: Translations.
 
 ### Known issues
-- Some padding issues
-- When editng config using Raw/Diff, custom options added manualy wont appear on Advanced page
+- When editng config using Raw/Diff, custom options added manualy wont appear on Advanced page.
+- Show/Hide Host editor button icon might not load. 
 
 ### Support
 
