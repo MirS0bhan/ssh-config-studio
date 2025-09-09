@@ -10,7 +10,6 @@ class SearchBar(Gtk.Box):
     __gtype_name__ = "SearchBar"
 
     search_entry = Gtk.Template.Child()
-    gtk_search_bar = Gtk.Template.Child()
 
     __gsignals__ = {
         'search-changed': (GObject.SignalFlags.RUN_LAST, None, (str,))
@@ -20,11 +19,8 @@ class SearchBar(Gtk.Box):
         super().__init__()
 
         self.search_timeout = None
-        try:
-            self.gtk_search_bar.set_key_capture_widget(self)
-            self.gtk_search_bar.connect_entry(self.search_entry)
-        except Exception:
-            pass
+        # Ensure visible by default
+        self.set_visible(True)
         self._connect_signals()
     def _connect_signals(self):
         self.search_entry.connect("search-changed", self._on_search_changed)
@@ -52,6 +48,7 @@ class SearchBar(Gtk.Box):
             self.search_timeout = None
         self._perform_search(query)
 
+
     def _on_clear_clicked(self, button):
         self.search_entry.set_text("")
         self.search_entry.grab_focus()
@@ -73,18 +70,10 @@ class SearchBar(Gtk.Box):
         self.emit("search-changed", "")
 
     def grab_focus(self):
-        try:
-            self.gtk_search_bar.set_search_mode(True)
-        except Exception:
-            pass
         self.search_entry.grab_focus()
 
     def get_parent_window(self):
         return self.get_root()
 
     def set_search_mode(self, visible: bool):
-        try:
-            self.gtk_search_bar.set_search_mode(bool(visible))
-        except Exception:
-            pass
         self.set_visible(bool(visible))

@@ -35,7 +35,7 @@ class MainWindow(Adw.ApplicationWindow):
         self.app = app
         self.parser = app.parser
         self.is_dirty = False
-        self._raw_wrap_lines = False  # Initialize wrap mode preference
+        self._raw_wrap_lines = False
         
         self._connect_signals()
         self._load_config()
@@ -98,7 +98,7 @@ class MainWindow(Adw.ApplicationWindow):
             self.delete_button.connect("clicked", self._on_delete_clicked)
         except Exception:
             pass
-        
+
         self.host_list.connect("host-selected", self._on_host_selected)
         self.host_list.connect("host-added", self._on_host_added)
         self.host_list.connect("host-deleted", self._on_host_deleted)
@@ -178,7 +178,7 @@ class MainWindow(Adw.ApplicationWindow):
     
     def _toggle_search(self, force=None):
         try:
-            make_visible = (not self.search_bar.get_visible()) if force is None else bool(force)
+            make_visible = True if force is None else bool(force)
             if hasattr(self.search_bar, "set_search_mode"):
                 self.search_bar.set_search_mode(make_visible)
             else:
@@ -245,7 +245,8 @@ class MainWindow(Adw.ApplicationWindow):
             
             self.host_list.load_hosts(self.parser.config.hosts)
             self.is_dirty = False
-            self.save_button.set_sensitive(False)
+            if self.save_button is not None:
+                self.save_button.set_sensitive(False)
             self._update_status(_("Configuration saved successfully"))
         except Exception as e:
             self._show_error(f"Failed to save configuration: {e}")
@@ -275,7 +276,8 @@ class MainWindow(Adw.ApplicationWindow):
 
             self.parser.config.add_host(host)
             self.is_dirty = True
-            self.save_button.set_sensitive(True)
+            if self.save_button is not None:
+                self.save_button.set_sensitive(True)
             self._update_status(_("Host added"))
             self.host_editor.set_visible(True)
             self.host_editor.load_host(host)
@@ -285,14 +287,16 @@ class MainWindow(Adw.ApplicationWindow):
         if self.parser:
             self.parser.config.remove_host(host)
             self.is_dirty = True
-            self.save_button.set_sensitive(True)
+            if self.save_button is not None:
+                self.save_button.set_sensitive(True)
             self._update_status(_("Host deleted"))
             
             if not self.parser.config.hosts:
                 self.host_editor.current_host = None
                 self.host_editor._clear_all_fields()
                 self.host_editor.set_visible(False)
-                self.save_button.set_sensitive(False)
+                if self.save_button is not None:
+                    self.save_button.set_sensitive(False)
                 self.is_dirty = False
                 # Collapse back to list-only view when no hosts remain
                 try:
@@ -305,14 +309,17 @@ class MainWindow(Adw.ApplicationWindow):
     def _on_host_changed(self, editor, host):
         self.is_dirty = self.parser.config.is_dirty()
         if self.save_button is not None:
-            self.save_button.set_sensitive(self.is_dirty)
+            if self.save_button is not None:
+                self.save_button.set_sensitive(self.is_dirty)
 
     def _on_editor_validity_changed(self, editor, is_valid: bool):
         if self.save_button is not None:
             if not is_valid:
-                self.save_button.set_sensitive(False)
+                if self.save_button is not None:
+                    self.save_button.set_sensitive(False)
             else:
-                self.save_button.set_sensitive(self.is_dirty)
+                if self.save_button is not None:
+                    self.save_button.set_sensitive(self.is_dirty)
 
     def _on_search_changed(self, search_bar, query):
         """Handle search query changes."""
@@ -360,7 +367,6 @@ class MainWindow(Adw.ApplicationWindow):
         dialog.set_preferences(current_prefs)
 
         def on_close_request(dlg):
-            # Save preferences when dialog is closed
             prefs = dlg.get_preferences()
             if self.parser:
                 if prefs.get("config_path"):
@@ -387,7 +393,6 @@ class MainWindow(Adw.ApplicationWindow):
                     )
             except Exception:
                 pass
-            # Handle raw wrap lines preference
             raw_wrap = bool(prefs.get("raw_wrap_lines", False))
             self._raw_wrap_lines = raw_wrap
             try:

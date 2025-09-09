@@ -11,15 +11,13 @@ template $HostEditor: Box {
   ]
 
   Adw.Clamp {
-    maximum-size: 900;
-    tightening-threshold: 700;
+    maximum-size: 920;
+    tightening-threshold: 640;
 
     child: Box {
       orientation: vertical;
       spacing: 6;
       margin-top: 12;
-      margin-start: 12;
-      margin-end: 12;
 
       Box {
         orientation: horizontal;
@@ -30,6 +28,7 @@ template $HostEditor: Box {
           stack: viewstack;
           policy: wide;
           halign: start;
+          hexpand: false;
 
           styles [
             "view-switcher",
@@ -40,12 +39,11 @@ template $HostEditor: Box {
           orientation: horizontal;
           spacing: 6;
           halign: end;
-          hexpand: false;
+          hexpand: true;
 
           Button revert_button {
             label: _("Revert");
             sensitive: false;
-
             styles [
               "destructive-action",
             ]
@@ -71,7 +69,7 @@ template $HostEditor: Box {
 
   Adw.ViewStack viewstack {
     vexpand: true;
-    notify::visible-child-name => $on_stack_changed() not-swapped;
+    notify::visible-child-name => $on_stack_changed();
 
     Adw.ViewStackPage {
       title: _("Settings");
@@ -79,6 +77,8 @@ template $HostEditor: Box {
       name: "settings";
 
       child: Adw.Clamp {
+        maximum-size: 920;
+        tightening-threshold: 640;
         child: Adw.PreferencesPage {
           Adw.PreferencesGroup {
             title: _("Connection");
@@ -169,6 +169,8 @@ template $HostEditor: Box {
       name: "networking";
 
       child: Adw.Clamp {
+        maximum-size: 920;
+        tightening-threshold: 640;
         child: Adw.PreferencesPage {
           Adw.PreferencesGroup {
             title: _("Networking");
@@ -199,6 +201,8 @@ template $HostEditor: Box {
       name: "advanced";
 
       child: Adw.Clamp {
+        maximum-size: 920;
+        tightening-threshold: 640;
         child: Adw.PreferencesPage {
           Adw.PreferencesGroup {
             title: _("Advanced");
@@ -231,6 +235,8 @@ template $HostEditor: Box {
       name: "raw";
 
       child: Adw.Clamp {
+        maximum-size: 920;
+        tightening-threshold: 640;
         child: Adw.PreferencesPage {
           Adw.PreferencesGroup {
             title: _("Raw Configuration");

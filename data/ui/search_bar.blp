@@ -2,20 +2,18 @@ using Gtk 4.0;
 
 template $SearchBar: Box {
   orientation: horizontal;
-  spacing: 12;
+  spacing: 0;
 
-  styles [
-    "search-bar",
-    "toolbar",
-  ]
+  SearchEntry search_entry {
+    placeholder-text: _("Search hosts, hostnames, users, keys...");
+    tooltip-text: _("Search across all SSH host configurations");
+    hexpand: true;
+    halign: center;
+    margin-top: 8;
+    margin-bottom: 8;
 
-  SearchBar gtk_search_bar {
-    show-close-button: true;
-
-    SearchEntry search_entry {
-      placeholder-text: _("Search hosts, hostnames, users, keys...");
-      tooltip-text: _("Search across all SSH host configurations");
-      hexpand: true;
-    }
+    styles [
+      "pill",
+    ]
   }
 }

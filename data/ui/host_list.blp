@@ -17,7 +17,7 @@ template $HostList: Box {
       orientation: horizontal;
       spacing: 12;
       margin-start: 12;
-      margin-end: 12;
+      margin-end: 20;
       margin-top: 8;
       margin-bottom: 8;
 
@@ -42,8 +42,12 @@ template $HostList: Box {
 
     ScrolledWindow {
       hexpand: true;
-      vexpand: true;
+      vexpand: false;
       min-content-width: 350;
+      margin-start: 12;
+      margin-end: 20;
+      height-request: 650;
+      valign: start;
 
       styles [
         "host-list-scroll",
@@ -53,9 +57,10 @@ template $HostList: Box {
         selection-mode: single;
         hexpand: true;
         vexpand: true;
+        margin-bottom: 12;
 
         styles [
-          "navigation-sidebar",
+          "boxed-list",
         ]
       }
     }

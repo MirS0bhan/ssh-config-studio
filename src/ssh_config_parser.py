@@ -170,7 +170,6 @@ class SSHConfigParser:
                 if current == content:
                     return
             except Exception:
-                # If read fails, continue to write the new content
                 pass
 
         effective_backup = backup and self.auto_backup_enabled and self.config_path.exists()

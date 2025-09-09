@@ -20,12 +20,15 @@ class PreferencesDialog(Adw.PreferencesWindow):
     raw_wrap_switch = Gtk.Template.Child()
 
     def __init__(self, parent):
-        super().__init__(
-            transient_for=parent,
-            modal=True,
-            title=_("Preferences")
-        )
-        self.set_default_size(600, 500)
+        super().__init__(transient_for=parent, modal=True)
+        try:
+            self.set_title(_("Preferences"))
+        except Exception:
+            pass
+        try:
+            self.set_default_size(600, 500)
+        except Exception:
+            pass
         self._connect_signals()
     
     def _connect_signals(self):

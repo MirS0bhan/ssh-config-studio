@@ -1,6 +1,7 @@
 import gi
 gi.require_version('Gtk', '4.0')
-from gi.repository import Gtk, GObject, Pango
+gi.require_version('Adw', '1')
+from gi.repository import Gtk, GObject, Pango, Adw, Gdk
 from gettext import gettext as _
 
 try:
@@ -139,6 +140,17 @@ class HostList(Gtk.Box):
             host = model.get_value(tree_iter, 5)
             self.emit("host-selected", host)
 
+    def _on_row_button_press(self, widget, event, menu):
+        return False
+
+    def _on_duplicate_host_clicked(self, button, host):
+        """Handle duplicate host button click from an ActionRow."""
+        self.duplicate_host(host)
+
+    def _on_delete_host_clicked(self, button, host):
+        """Handle delete host button click from an ActionRow."""
+        self.delete_host(host)
+
     def add_host(self):
         """Add a new host."""
         new_host = SSHHost(patterns=["new-host"])
@@ -148,9 +160,10 @@ class HostList(Gtk.Box):
 
         self.select_host(new_host)
 
-    def duplicate_host(self):
+    def duplicate_host(self, original_host: SSHHost = None):
         """Duplicate the selected host."""
-        original_host = self._get_selected_host()
+        if original_host is None:
+            original_host = self._get_selected_host()
         if original_host is not None:
             duplicated_host = self._duplicate_host(original_host)
 
@@ -160,16 +173,17 @@ class HostList(Gtk.Box):
 
             self.select_host(duplicated_host)
 
-    def delete_host(self):
+    def delete_host(self, host_to_delete: SSHHost = None):
         """Delete the selected host."""
-        host = self._get_selected_host()
-        if host is not None:
+        if host_to_delete is None:
+            host_to_delete = self._get_selected_host()
+        if host_to_delete is not None:
 
             dialog = Gtk.MessageDialog(
                 transient_for=self.get_root(),
                 message_type=Gtk.MessageType.QUESTION,
                 buttons=Gtk.ButtonsType.NONE,
-                text=_(f"Delete host '{', '.join(host.patterns)}'?"),
+                text=_(f"Delete host '{', '.join(host_to_delete.patterns)}'?"),
             )
             dialog.add_buttons(
                 _("No"), Gtk.ResponseType.NO,
@@ -178,11 +192,11 @@ class HostList(Gtk.Box):
 
             def on_response(dlg, response_id):
                 if response_id == Gtk.ResponseType.YES:
-                    self.emit("host-deleted", host)
-                    if host in self.hosts:
-                        self.hosts.remove(host)
-                    if host in self.filtered_hosts:
-                        self.filtered_hosts.remove(host)
+                    self.emit("host-deleted", host_to_delete)
+                    if host_to_delete in self.hosts:
+                        self.hosts.remove(host_to_delete)
+                    if host_to_delete in self.filtered_hosts:
+                        self.filtered_hosts.remove(host_to_delete)
                     self._refresh_view()
                     self._update_count()
                 dlg.destroy()
@@ -240,21 +254,51 @@ class HostList(Gtk.Box):
             patterns = row[0]
             hostname = row[1]
             user = row[2]
-            # Build a two-line row with subtle secondary text
-            box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
-            title = Gtk.Label(label=patterns, xalign=0)
-            title.add_css_class("title-4")
-            subtitle = Gtk.Label(label=f"{user}@{hostname}" if hostname or user else hostname or patterns, xalign=0)
-            subtitle.add_css_class("dim-label")
-            box.append(title)
-            box.append(subtitle)
+            # Use Adw.ActionRow for nicer list presentation
+            action_row = Adw.ActionRow()
+            action_row.set_title(patterns)
+            secondary = f"{user}@{hostname}" if (hostname or user) else (hostname or patterns)
+            action_row.set_subtitle(secondary)
 
-            list_row = Gtk.ListBoxRow()
-            list_row.set_child(box)
-            list_row.set_selectable(True)
-            list_row.set_activatable(True)
-            list_row._host_ref = host
-            self.list_box.append(list_row)
+            popover = Gtk.Popover()
+            box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+            box.set_margin_top(6)
+            box.set_margin_bottom(6)
+            box.set_margin_start(6)
+            box.set_margin_end(6)
+
+            duplicate_btn = Gtk.Button.new_with_label(_("Duplicate Host"))
+            duplicate_btn.connect("clicked", self._on_duplicate_host_clicked, host)
+            box.append(duplicate_btn)
+
+            delete_btn = Gtk.Button.new_with_label(_("Delete Host"))
+            delete_btn.connect("clicked", self._on_delete_host_clicked, host)
+            box.append(delete_btn)
+
+            popover.set_child(box)
+            popover.set_has_arrow(True)
+
+            # Gesture for right-click
+            gesture = Gtk.GestureClick.new()
+            gesture.set_button(Gdk.BUTTON_SECONDARY)
+
+            def on_pressed(gest, n_press, x, y):
+                popover.set_parent(action_row)
+                rect = Gdk.Rectangle()
+                rect.x = int(x)
+                rect.y = int(y)
+                rect.width = 1
+                rect.height = 1
+                popover.set_pointing_to(rect)
+                popover.popup()
+
+            gesture.connect("pressed", on_pressed)
+            action_row.add_controller(gesture)
+
+            action_row.set_selectable(True)
+            action_row.set_activatable(True)
+            action_row._host_ref = host
+            self.list_box.append(action_row)
 
     def _on_row_selected(self, listbox, row):
         if row is None:

@@ -20,7 +20,6 @@ template $MainWindow: Adw.ApplicationWindow {
             "title",
           ]
         }
-
         [start]
         Button search_button {
           icon-name: "system-search-symbolic";
@@ -72,10 +71,7 @@ template $MainWindow: Adw.ApplicationWindow {
         }
       }
 
-      [top]
-      $SearchBar search_bar {
-        visible: "False";
-      }
+      
 
       Adw.NavigationSplitView split_view {
         collapsed: true;
@@ -87,7 +83,18 @@ template $MainWindow: Adw.ApplicationWindow {
             Adw.NavigationPage {
               title: _("SSH Hosts");
 
-              child: $HostList host_list {};
+              child: Adw.Clamp {
+                maximum-size: 680;
+                tightening-threshold: 480;
+
+                child: Box {
+                  orientation: vertical;
+                  spacing: 12;
+
+                  $SearchBar search_bar {}
+                  $HostList host_list {}
+                };
+              };
             }
           };
         };
